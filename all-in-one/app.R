@@ -6,102 +6,109 @@ library(bslib)
 library(Seurat)
 library(stringr)
 library(DT)
+library(htmltools)
 
 
 source("../backend.R")
 
 
-ui <- fluidPage(
-  fluidRow(
-    column(
-      6,
-      offset = 1,
-      markdown(
-        mds = "# Seurat Object Maker (all-in-one)",
+ui <- page_sidebar(
+
+  theme = bs_theme(
+    bootswatch = "pulse",
+    version = 5
+  ),
+
+  title = "Seurat Object Maker",
+
+  # fluidRow(
+  #   column(
+  #     6,
+  #     offset = 1,
+  #     markdown(
+  #       mds = "# Seurat Object Maker (all-in-one)",
+  #     )
+  #   ),
+  #   column(
+  #     3,
+  #     offset = 1,
+  #     markdown(
+  #       mds = c(
+  #         "<img ",
+  #         "src='https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe'",
+  #         "width='100%' />"
+  #       )
+  #     )
+  #   )
+  # ),
+
+  navset_card_pill(
+
+    nav_panel(
+      title = card_title("Load data"),
+      card_body(
+        markdown(
+          mds = c(
+            "## Select a directory",
+            "Select the **directory** (**folder**) where the _feature-barcode_ count matrices are. The files should be in the [Matrix Market Exchange format](https://math.nist.gov/MatrixMarket/formats.html) that e.g. the [Cellranger](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/output/matrices) pipeline outputs.",
+            "",
+            "That format consists of these files:",
+            "",
+            "```bash",
+            "    matrix.mtx",
+            "    features.tsv",
+            "    barcodes.tsv",
+            "```",
+            "",
+            "The files can also be compressed (in the `gzip` format) and then have the file extension `.gz`, e.g. `matrix.mtx.gz`.",
+            "",
+            "If the matrices were produced with e.g. a version of Cellranger below v3, `features.tsv` is instead named `genes.tsv`."
+          )
+        ),
+        actionButton(
+          inputId = "select_files_button",
+          label = "Select a directory",
+          width = "40%"
+        )
       )
     ),
-    column(
-      3,
-      offset = 1,
-      markdown(
-        mds = c(
-          "<img ",
-          "src='https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe'",
-          "width='100%' />"
-        )
-      )
+
+    nav_panel(
+      title = card_title("Filtering"),
+      card_body(
+        markdown(
+          mds = c(
+            "**Selected directory:**"
+          )
+        ),
+        textOutput(outputId = "selected_directory"),
+        markdown(
+          mds = c(
+            "### Violin plots of basic characteristics"
+          )
+        ),
+        plotlyOutput(outputId = "violin_plot"),
+        markdown(
+          mds = c(
+            "### Choose filtering parameters"
+          )
+        ),
+        markdown(
+          mds = c(
+            "Showing the metadata for the dataset, in order to help choose which columns to filter. Some suggestions have been selected in the checkboxes below."
+          )
+        ),
+        DTOutput(outputId = "metadata", width = "100%"),
+        make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
+        make_qc_slider(x = pbmc_small$nFeature_RNA, col = "nFeature_RNA")
+      ),
+      card_body()
+    ),
+
+    nav_panel(
+      title = card_title("Results")
     )
-  ),
-  fluidRow(
-    column(
-      10,
-      offset = 1,
-      tabPanel(
-        title = "My Shiny App",
-        tabsetPanel(
-          tabPanel(
-            title = "Load data",
-            card_body(
-              markdown(
-                mds = c(
-                  "## Select a directory",
-                  "Select the **directory** (**folder**) where the _feature-barcode_ count matrices are. The files should be in the [Matrix Market Exchange format](https://math.nist.gov/MatrixMarket/formats.html) that e.g. the [Cellranger](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/output/matrices) pipeline outputs.",
-                  "",
-                  "That format consists of these files:",
-                  "",
-                  "```bash",
-                  "    matrix.mtx",
-                  "    features.tsv",
-                  "    barcodes.tsv",
-                  "```",
-                  "",
-                  "The files can also be compressed (in the `gzip` format) and then have the file extension `.gz`, e.g. `matrix.mtx.gz`.",
-                  "",
-                  "If the matrices were produced with e.g. a version of Cellranger below v3, `features.tsv` is instead named `genes.tsv`."
-                )
-              ),
-              actionButton(
-                inputId = "select_files_button",
-                label = "Select a directory",
-                width = "40%"
-              )
-            )
-          ),
-          tabPanel(
-            title = "Filtering",
-            card_body(
-              markdown(
-                mds = c(
-                  "**Selected directory:**"
-                )
-              ),
-              textOutput(outputId = "selected_directory"),
-              markdown(
-                mds = c(
-                  "### Violin plots of basic characteristics"
-                )
-              ),
-              plotlyOutput(outputId = "violin_plot"),
-              markdown(
-                mds = c(
-                  "### Choose filtering parameters"
-                )
-              ),
-              markdown(
-                mds = c(
-                  "Showing the metadata for the dataset, in order to help choose which columns to filter. Some suggestions have been selected in the checkboxes below."
-                )
-              ),
-              DTOutput(outputId = "metadata", width = "100%"),
-              make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
-              make_qc_slider(x = pbmc_small$nFeature_RNA, col = "nFeature_RNA")
-            ),
-            card_body()
-          ),
-          tabPanel(title = "Results")
-        )
-      )
-    )
+
   )
 )
 
