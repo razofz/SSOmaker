@@ -11,31 +11,31 @@ library(DT)
 source("../backend.R")
 
 
-ui <- grid_page(
-  layout = c(
-    "logo    header         ",
-    "meatandpotatoes meatandpotatoes"
+ui <- fluidPage(
+  fluidRow(
+    column(
+      6,
+      offset = 1,
+      markdown(
+        mds = "# Seurat Object Maker (all-in-one)",
+      )
+    ),
+    column(
+      3,
+      offset = 1,
+      markdown(
+        mds = c(
+          "<img ",
+          "src='https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe'",
+          "width='100%' />"
+        )
+      )
+    )
   ),
-  row_sizes = c(
-    "100px",
-    "1fr"
-  ),
-  col_sizes = c(
-    "250px",
-    "1fr"
-  ),
-  gap_size = "1rem",
-  grid_card(area = "sidebar", card_header("Overview")),
-  grid_card_text(
-    area = "header",
-    content = "Seurat Object Maker (all-in-one)",
-    alignment = "center",
-    is_title = TRUE
-  ),
-  grid_card(
-    area = "meatandpotatoes",
-    card_header(strong("Content section")),
-    card_body(
+  fluidRow(
+    column(
+      10,
+      offset = 1,
       tabPanel(
         title = "My Shiny App",
         tabsetPanel(
@@ -102,16 +102,6 @@ ui <- grid_page(
         )
       )
     )
-  ),
-  grid_card(
-    area = "logo",
-    card_body(
-      markdown(
-        mds = c(
-          "<img src='https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe' width='100%' />"
-        )
-      )
-    )
   )
 )
 
@@ -128,14 +118,14 @@ server <- function(input, output) {
   fig <- plot_ly(midwest, x = ~percollege, color = ~state, type = "box")
   fig <- pbmc_small[[]] %>% plot_ly(
     y = ~nCount_RNA,
-    type = 'violin',
+    type = "violin",
     box = list(
       visible = T
     ),
     meanline = list(
       visible = T
     ),
-    x0 = 'nCount_RNA'
+    x0 = "nCount_RNA"
   )
   output$violin_plot <- renderPlotly(fig)
   # output$colnames_output <- renderText(colnames(pbmc_small[[]]))
