@@ -3,6 +3,12 @@ library(shinyFiles)
 library(plotly)
 library(gridlayout)
 library(bslib)
+library(Seurat)
+library(stringr)
+library(DT)
+
+
+source("../backend.R")
 
 
 ui <- grid_page(
@@ -81,21 +87,14 @@ ui <- grid_page(
                   "### Choose filtering parameters"
                 )
               ),
-              sliderInput(
-                inputId = "rna_count",
-                label = "nCount_RNA",
-                min = 0,
-                max = 1000,
-                value = 5,
-                width = "75%"
+              markdown(
+                mds = c(
+                  "Showing the metadata for the dataset, in order to help choose which columns to filter. Some suggestions have been selected in the checkboxes below."
+                )
               ),
-              numericInput(
-                inputId = "num_input_rna_count",
-                label = "nCount_RNA",
-                value = 500,
-                min = 0,
-                max = 1000
-              )
+              DTOutput(outputId = "metadata", width = "100%"),
+              make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
+              make_qc_slider(x = pbmc_small$nFeature_RNA, col = "nFeature_RNA")
             ),
             card_body()
           ),
@@ -119,6 +118,28 @@ ui <- grid_page(
 
 server <- function(input, output) {
   # shinyFilesButton("files", label = "File select", title = "Please select a file", multiple = FALSE)
+
+  # pbmc_small
+
+  placeholder_dir <- file.path("/Users/oliverwidell/Downloads/pbmc_small")
+  output$selected_directory <- renderText(placeholder_dir)
+
+  # just inputting an example plot as a placeholder atm
+  fig <- plot_ly(midwest, x = ~percollege, color = ~state, type = "box")
+  fig <- pbmc_small[[]] %>% plot_ly(
+    y = ~nCount_RNA,
+    type = 'violin',
+    box = list(
+      visible = T
+    ),
+    meanline = list(
+      visible = T
+    ),
+    x0 = 'nCount_RNA'
+  )
+  output$violin_plot <- renderPlotly(fig)
+  # output$colnames_output <- renderText(colnames(pbmc_small[[]]))
+  output$metadata <- renderDataTable(pbmc_small[[]] %>% head(10))
 }
 
 shinyApp(ui, server)

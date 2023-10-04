@@ -1,5 +1,6 @@
 library(Seurat)
 library(ggplot2)
+library(stringr)
 
 detect_features_format <- function(features) {
   print(head(features))
@@ -19,4 +20,24 @@ read_data <- function(
   so_data <- Read10X(chosen_folder, cell.column = NULL, gene.column = 1)
   # so <- CreateSeuratObject(so_data, project = project_name)
   return(so_data)
+}
+
+make_qc_slider <- function(x, col) {
+  if (is.numeric(x)) {
+    col_range <- range(x, na.rm = TRUE)
+    sliderInput(
+      inputId = str_c("qc_slider_", col),
+      label = col,
+      min = col_range[1],
+      max = col_range[2],
+      value = col_range,
+      width = "75%"
+    )
+  } else if (is.factor(x)) {
+    levs <- levels(x)
+    selectInput(col, col, choices = levs, selected = levs, multiple = TRUE)
+  } else {
+    # Not supported
+    NULL
+  }
 }
