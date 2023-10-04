@@ -1,16 +1,29 @@
-# Load the required libraries
 library(shiny)
 library(shinyFiles)
 library(Seurat)
 library(ggplot2)
+source("backend.R")
+
+port <- 3648
 
 # Define the UI
 ui <- fluidPage(
-  titlePanel("Shamit's Seurat Object Maker"),
+  titlePanel("OUR Seurat Object Maker"),
   sidebarLayout(
-    sidebarPanel(
-      shinyDirButton("folder", "Choose a folder", "Please select a folder", title = "Select a folder"),
-      numericInput("mtpc_max", "% mito max:", min = 0, max = 100, value = 5),
+    sidebarPanel = sidebarPanel(
+      shinyDirButton(
+        id = "folder",
+        label = "Choose a folder",
+        # "Please select a folder",
+        title = "Select a folder"
+      ),
+      numericInput(
+        inputId = "mtpc_max",
+        label = "% mito max:",
+        min = 0,
+        max = 100,
+        value = 5
+      ),
       numericInput("mtpc_min", "% mito min:", min = 0, max = 100, value = 0),
       numericInput("nfrna_max", "nFeature_RNA max:", min = 0, max = 1000000, value = 10000),
       numericInput("nfrna_min", "nFeature_RNA min:", min = 0, max = 1000000, value = 200),
@@ -22,7 +35,7 @@ ui <- fluidPage(
       numericInput("res", "Cluster resolution:", min = 0.1, max = 3, value = 0.5),
       downloadButton("download", "Download Seurat Object")
     ),
-    mainPanel(
+    mainPanel = mainPanel(
       h4("Selected Folder Path:"),
       verbatimTextOutput("folder_path"),
       h4("Violin plots of basic characteristics:"),
@@ -43,15 +56,21 @@ ui <- fluidPage(
 
 # Define the server
 server <- function(input, output, session) {
-  shinyDirChoose(input, "folder", roots = c(home = "~"))
+  shinyDirChoose(
+    input = input,
+    id = "folder",
+    roots = c(home = "~")
+  )
 
   observe({
     if (!is.null(input$folder)) {
       chosen_folder_path <- parseDirPath(roots = c(home = "~"), input$folder)
+      print(chosen_folder_path)
       output$folder_path <- renderPrint({
         chosen_folder_path
         print(chosen_folder_path)
-        so.data <- Read10X(data.dir = chosen_folder_path)
+        # so.data <- Read10X(data.dir = chosen_folder_path)
+        so.data <- read_data(chosen_folder_path)
         print("Dimensions of data uploaded:")
         print(dim(so.data))
         so <- CreateSeuratObject(counts = so.data, project = "shiny", min.cells = 3, min.features = 200)
@@ -123,4 +142,5 @@ server <- function(input, output, session) {
 }
 
 # Run the Shiny app
-shinyApp(ui, server)
+shinyApp(ui, server, options = list("launch.browser" = F))
+# runApp(".")
