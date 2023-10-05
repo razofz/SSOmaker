@@ -37,7 +37,6 @@ ui <- page_navbar(
     ),
     conditionalPanel(
       "input.nav === 'filtering'",
-      # "input.nav === '<h5>Filtering</h5>'",
       markdown(
         mds = c(
           "## Flow of app",
@@ -127,18 +126,22 @@ ui <- page_navbar(
           "### Violin plots of basic characteristics"
         )
       ),
-      plotlyOutput(outputId = "violin_plot"),
-      # make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
-      sliderInput(
-        inputId = str_c("qc_slider_", "nCount_RNA"),
-        label = "nCount_RNA filtering",
-        min = range(pbmc_small$nCount_RNA, na.rm = TRUE)[1],
-        max = range(pbmc_small$nCount_RNA, na.rm = TRUE)[2],
-        value = range(pbmc_small$nCount_RNA, na.rm = TRUE),
-        width = "75%"
+      div(
+        plotlyOutput(outputId = "violin_plot"),#, width = "80%"),
+        sliderInput(
+          inputId = str_c("qc_slider_", "nCount_RNA"),
+          label = "nCount_RNA filtering",
+          min = range(pbmc_small$nCount_RNA, na.rm = TRUE)[1],
+          max = range(pbmc_small$nCount_RNA, na.rm = TRUE)[2],
+          value = range(pbmc_small$nCount_RNA, na.rm = TRUE),
+          width = "100%"
+        ),
+        helpText("Adjust the sliders to set the filtering cutoffs."),
+        textOutput(outputId = "qc_value"),
+        style = "width:500px",
+        class = "mx-auto"
       ),
-      helpText("Adjust the sliders to set the filtering cutoffs."),
-      textOutput(outputId = "qc_value"),
+      # make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
       # actionButton("show", "Show"),
       # splitLayout(
       #   make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
@@ -176,20 +179,14 @@ server <- function(input, output, session) {
 
   # pbmc_small
   # print(input)
-  # input$qc_slider_nCount_RNA
   # print(output)
 
   placeholder_dir <- file.path("/Users/johndoe/Downloads/pbmc_small")
   output$selected_directory <- renderText(placeholder_dir)
   output$nav_now <- renderText(input$nav)
-  output$qc_value <- renderText(input$qc_slider_nCount_RNA)
+  # output$qc_value <- renderText(input$qc_slider_nCount_RNA)
 
-  reactive_metadata <- reactive({
-    pbmc_small[[]]#[
-      # pbmc_small[[]]$nCount_RNA > input$qc_slider_nCount_RNA[1] |
-      # pbmc_small[[]]$nCount_RNA < input$qc_slider_nCount_RNA[2]
-      # ,]
-  })
+  reactive_metadata <- reactive({ pbmc_small[[]] })
 
   output$original_n_cells <- renderText({
       nrow(reactive_metadata()[, ])
@@ -203,17 +200,19 @@ server <- function(input, output, session) {
   output$filtered_dimensions <- renderText({
     str_c(
       "Number of cells before filtering: ",
-      nrow(reactive_metadata()[pbmc_small[[]]$nCount_RNA >= input$qc_slider_nCount_RNA[1], ]),
+      nrow(reactive_metadata()[, ]),
       " cells. ",
       "Cells left after filtering: ",
-      nrow(reactive_metadata()[pbmc_small[[]]$nCount_RNA <= input$qc_slider_nCount_RNA[2], ]),
+      nrow(reactive_metadata()[
+        pbmc_small[[]]$nCount_RNA >= input$qc_slider_nCount_RNA[1] &
+        pbmc_small[[]]$nCount_RNA <= input$qc_slider_nCount_RNA[2]
+        , ]),
       " cells."
     )
   }
   )
 
 
-  # input$qc_slider_nCount_RNA
   output$violin_plot <- renderPlotly({
     pbmc_small[[]] %>%
       plot_ly(
