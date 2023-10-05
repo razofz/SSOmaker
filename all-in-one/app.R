@@ -17,29 +17,7 @@ ui <- page_navbar(
     bootswatch = "pulse",
     version = 5
   ),
-  #   theme = bs_theme(
-  #   bg = "#000000", fg = "#B8BCC2", primary = "#EA80FC",
-  #   base_font = font_google("Grandstander"),
-  #   "font-size-base" = "1.1rem"
-  # ),
-
   title = "Seurat Object Maker",
-  # title = markdown(mds = c(
-  #   "### Seurat Object Maker",
-  #   '<img src = "https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe" width="200px" />'
-  # )),
-  # title = card(
-  #   card_header(
-  #     "Seurat Object Maker",
-  #     width = "10%"
-  #   ),
-  #   card_image(
-  #     width = "10%",
-  #     file = "https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe",
-  #     href = "https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe"
-  #   )
-  # ),
-
   fillable = F,
   sidebar = sidebar(
     conditionalPanel(
@@ -75,12 +53,6 @@ ui <- page_navbar(
         )
       )
     ),
-    # card(
-    #   card_image(
-    #     file = "https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe",
-    #     href = "https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe"
-    #   )
-    # ),
     fillable = T,
     position = "right"
   ),
@@ -120,7 +92,7 @@ ui <- page_navbar(
           "**Selected directory:**"
         )
       ),
-      # textOutput(outputId = "selected_directory"),
+      textOutput(outputId = "selected_directory"),
       # value_box(
       #   # title = "Selected directory",
       #   value = "",
@@ -155,11 +127,8 @@ ui <- page_navbar(
   nav_panel(
     title = card_title("Results")
   ),
-
   nav_spacer(),
   nav_item(
-    # img(src="https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe",  width = "20%", height = "50%", align = "right")
-    # imageOutput("logo",  width = "10%", height = "100px")
     markdown(
       '<img src = "https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe" width="200px" />'
     )
@@ -172,15 +141,7 @@ server <- function(input, output) {
 
   # pbmc_small
 
-  # output$logo <- renderImage(
-  #   deleteFile = F,
-  #   list(
-  #     src = "static/lu_logo.png.webp",
-  #     alt = ""
-  #   )
-  #   )
-
-  placeholder_dir <- file.path("/Users/oliverwidell/Downloads/pbmc_small")
+  placeholder_dir <- file.path("/Users/johndoe/Downloads/pbmc_small")
   output$selected_directory <- renderText(placeholder_dir)
   output$nav_now <- renderText(input$nav)
 
