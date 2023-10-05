@@ -43,7 +43,7 @@ make_qc_slider <- function(x, col) {
 }
 
 
-hline <- function(y = 0, color = "black") {
+hline <- function(y = 0, color = "black", alpha = .8) {
   list(
     type = "line",
     x0 = 0,
@@ -51,36 +51,74 @@ hline <- function(y = 0, color = "black") {
     xref = "paper",
     y0 = y,
     y1 = y,
-    line = list(color = color)
+    line = list(color = color),
+    alpha = alpha
   )
 }
 
 
-make_qc_plots <- function(sobj, col) {
-  if (col %in% colnames(sobj[[]])) {
-    fig1 <- sobj[[]] %>%
-      plot_ly(
-        y = as.formula(str_c(" ~ ", col)),
-        type = "violin",
-        box = list(visible = T),
-        meanline = list(visible = T),
-        name = "nCount_RNA",
-        x0 = "nCount_RNA"
-      ) %>%
-      layout(yaxis = list(zeroline = F), shapes = list(hline(6), hline(600)))
-    fig2 <- sobj[[]] %>%
-      plot_ly(
-        y = as.formula(str_c(" ~ log2(", col, ")")),
-        type = "violin",
-        box = list(visible = T),
-        meanline = list(visible = T),
-        name = "log2(nCount_RNA)",
-        x0 = "nCount_RNA"
-      ) %>%
-      layout(yaxis = list(zeroline = F), shapes = list(hline(6), hline(9.5)))
-    fig <- subplot(fig1, fig2)
-    return(fig)
-  } else {
-    return(NULL)
-  }
+make_qc_plots <- function(
+    sobj,
+    col,
+    input, output, session
+    # min_cutoff,
+    # max_cutoff
+    ) {
+  fig <- reactive({
+    if (col %in% colnames(sobj[[]])) {
+      fig1 <- sobj[[]] %>%
+        plot_ly(
+          y = as.formula(str_c(" ~ ", col)),
+          type = "violin",
+          box = list(visible = T),
+          meanline = list(visible = T),
+          name = "nCount_RNA",
+          x0 = "nCount_RNA"
+        ) %>%
+        layout(
+          yaxis = list(zeroline = F),
+          shapes = list(
+            # hline(min_cutoff),
+            hline(input$qc_slider_nCount_RNA[1]),
+            hline(input$qc_slider_nCount_RNA[2]),
+            # hline(max_cutoff)
+          )
+        )
+      fig2 <- sobj[[]] %>%
+        plot_ly(
+          y = as.formula(str_c(" ~ log2(", col, ")")),
+          type = "violin",
+          box = list(visible = T),
+          meanline = list(visible = T),
+          name = "log2(nCount_RNA)",
+          x0 = "nCount_RNA"
+        ) %>%
+        layout(yaxis = list(zeroline = F), shapes = list(hline(6), hline(9.5)))
+      fig <- subplot(fig1, fig2)
+      return(fig)
+    } else {
+      return(NULL)
+    }
+  })
+  return(fig)
+}
+
+qc_plot_ui <- function(id, label = "QC") {
+  make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA")
+}
+
+qc_plot_server <- function(
+  id,
+  sobj,
+  col
+) {
+  moduleServer(
+    id,
+    function(input, output, session) {
+      min_cutoff <- reactiveVal(0)
+      observeEvent(input$qc_slider_nCount_RNA, {
+        min_cutoff(input$qc_slider_nCount_RNA[1])
+      })
+    }
+  )
 }

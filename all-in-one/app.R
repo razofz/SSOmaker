@@ -1,8 +1,9 @@
 library(shiny)
 library(shinyFiles)
 library(plotly)
-library(gridlayout)
+# library(gridlayout)
 library(bslib)
+library(bsicons)
 library(Seurat)
 library(stringr)
 library(DT)
@@ -10,6 +11,8 @@ library(htmltools)
 
 
 source("../backend.R")
+
+options(shiny.maxRequestSize = 300*1024^2) # 300 MB limit
 
 ui <- page_navbar(
   id = "nav",
@@ -105,28 +108,54 @@ ui <- page_navbar(
       #   showcase = bsicons::bs_icon("file-earmark-spreadsheet"), # , size = NULL),
       #   theme_color = "success"
       # ),
+      splitLayout(
+        value_box(
+          title = "Original number of cells",
+          value = textOutput(outputId = "original_n_cells"),
+          showcase = bsicons::bs_icon("clipboard-data"),
+          theme_color = "success"
+        ),
+        value_box(
+          title = "Number of cells left after filtering",
+          value = textOutput(outputId = "filtered_n_cells"),
+          showcase = bsicons::bs_icon("receipt-cutoff"),
+          theme_color = "warning"
+        )
+      ),
       markdown(
         mds = c(
           "### Violin plots of basic characteristics"
         )
       ),
       plotlyOutput(outputId = "violin_plot"),
-      make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
-      splitLayout(
-        make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
-        make_qc_slider(x = pbmc_small$nFeature_RNA, col = "nFeature_RNA")
+      # make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
+      sliderInput(
+        inputId = str_c("qc_slider_", "nCount_RNA"),
+        label = "nCount_RNA filtering",
+        min = range(pbmc_small$nCount_RNA, na.rm = TRUE)[1],
+        max = range(pbmc_small$nCount_RNA, na.rm = TRUE)[2],
+        value = range(pbmc_small$nCount_RNA, na.rm = TRUE),
+        width = "75%"
       ),
+      helpText("Adjust the sliders to set the filtering cutoffs."),
+      textOutput(outputId = "qc_value"),
+      # actionButton("show", "Show"),
+      # splitLayout(
+      #   make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
+      #   make_qc_slider(x = pbmc_small$nFeature_RNA, col = "nFeature_RNA")
+      # ),
       markdown(
         mds = c(
           "### Choose filtering parameters"
         )
       ),
+      textOutput(outputId = "filtered_dimensions"),
       markdown(
         mds = c(
           "Showing the metadata for the dataset, in order to help choose which columns to filter. Some suggestions have been selected in the checkboxes below."
         )
       ),
-      DTOutput(outputId = "metadata", width = "100%")
+      DT::dataTableOutput("metadata")
     ) # ,
   ),
   nav_panel(
@@ -142,19 +171,123 @@ ui <- page_navbar(
 )
 
 
-server <- function(input, output) {
+server <- function(input, output, session) {
   # shinyFilesButton("files", label = "File select", title = "Please select a file", multiple = FALSE)
 
   # pbmc_small
+  # print(input)
+  # input$qc_slider_nCount_RNA
+  # print(output)
 
   placeholder_dir <- file.path("/Users/johndoe/Downloads/pbmc_small")
   output$selected_directory <- renderText(placeholder_dir)
   output$nav_now <- renderText(input$nav)
+  output$qc_value <- renderText(input$qc_slider_nCount_RNA)
 
-  fig <- make_qc_plots(pbmc_small, "nCount_RNA")
-  output$violin_plot <- renderPlotly(fig)
-  # output$colnames_output <- renderText(colnames(pbmc_small[[]]))
-  output$metadata <- renderDataTable(pbmc_small[[]] %>% head(10))
+  reactive_metadata <- reactive({
+    pbmc_small[[]]#[
+      # pbmc_small[[]]$nCount_RNA > input$qc_slider_nCount_RNA[1] |
+      # pbmc_small[[]]$nCount_RNA < input$qc_slider_nCount_RNA[2]
+      # ,]
+  })
+
+  output$original_n_cells <- renderText({
+      nrow(reactive_metadata()[, ])
+  })
+  output$filtered_n_cells <- renderText({
+      nrow(reactive_metadata()[
+        pbmc_small[[]]$nCount_RNA >= input$qc_slider_nCount_RNA[1] &
+        pbmc_small[[]]$nCount_RNA <= input$qc_slider_nCount_RNA[2]
+        , ])
+  })
+  output$filtered_dimensions <- renderText({
+    str_c(
+      "Number of cells before filtering: ",
+      nrow(reactive_metadata()[pbmc_small[[]]$nCount_RNA >= input$qc_slider_nCount_RNA[1], ]),
+      " cells. ",
+      "Cells left after filtering: ",
+      nrow(reactive_metadata()[pbmc_small[[]]$nCount_RNA <= input$qc_slider_nCount_RNA[2], ]),
+      " cells."
+    )
+  }
+  )
+
+
+  # input$qc_slider_nCount_RNA
+  output$violin_plot <- renderPlotly({
+    pbmc_small[[]] %>%
+      plot_ly(
+        y = as.formula(str_c(" ~ ", "nCount_RNA")),
+        type = "violin",
+        box = list(visible = T),
+        meanline = list(visible = T),
+        name = "nCount_RNA",
+        x0 = "nCount_RNA"
+      ) %>%
+      layout(
+        yaxis = list(zeroline = F),
+        shapes = list(
+          # hline(min_cutoff),
+          hline(input$qc_slider_nCount_RNA[1]),
+          hline(input$qc_slider_nCount_RNA[2])
+          # hline(max_cutoff)
+        )
+      ) #%>%
+        # config(
+        #   selectmode = "lasso",
+        # )
+    })
+  
+  # observeEvent(input$show, {
+  #     showNotification(
+  #       ui = markdown(c(
+  #         "## This is a notification. ",
+  #         "_Take care._"
+  #       )),
+  #       type = "warning"
+  #     )
+  #   })
+
+
+  # fig <- make_qc_plots(
+  #   sobj = pbmc_small,
+  #   col = "nCount_RNA",
+  #   min_cutoff = input$qc_slider_nCount_RNA[1],
+  #   max_cutoff = input$qc_slider_nCount_RNA[2],
+  # )
+  # fig <- callModule(make_qc_plots, "backend")
+  # output$violin_plot <- renderPlotly(
+  #   fig
+    # make_qc_plots(
+    #   sobj = pbmc_small,
+    #   col = "nCount_RNA",
+    #   input = input,
+    #   output = output,
+    #   session = session,
+    # )
+  # )
+  # output$violin_plot <- renderPlotly({
+  #   reactive(make_qc_plots(
+  #     sobj = pbmc_small,
+  #     col = "nCount_RNA",
+  #     min_cutoff = input$qc_slider_nCount_RNA[1],
+  #     max_cutoff = input$qc_slider_nCount_RNA[2],
+  #   ))
+  # })
+  # input$qc_slider_nCount_RNA
+  output$colnames_output <- renderText(colnames(pbmc_small[[]]))
+  output$metadata <- DT::renderDataTable({
+    DT::datatable(
+      pbmc_small[[]],
+      caption = "Metadata",
+      options = list(
+        pageLength = 5
+      ),
+      fillContainer = T
+      # style = 'bootstrap'
+    )
+  })
+  # print(session$clientData)
 }
 
 shinyApp(ui, server)
