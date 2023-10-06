@@ -41,3 +41,46 @@ make_qc_slider <- function(x, col) {
     NULL
   }
 }
+
+
+hline <- function(y = 0, color = "black") {
+  list(
+    type = "line",
+    x0 = 0,
+    x1 = 1,
+    xref = "paper",
+    y0 = y,
+    y1 = y,
+    line = list(color = color)
+  )
+}
+
+
+make_qc_plots <- function(sobj, col) {
+  if (col %in% colnames(sobj[[]])) {
+    fig1 <- sobj[[]] %>%
+      plot_ly(
+        y = as.formula(str_c(" ~ ", col)),
+        type = "violin",
+        box = list(visible = T),
+        meanline = list(visible = T),
+        name = "nCount_RNA",
+        x0 = "nCount_RNA"
+      ) %>%
+      layout(yaxis = list(zeroline = F), shapes = list(hline(6), hline(600)))
+    fig2 <- sobj[[]] %>%
+      plot_ly(
+        y = as.formula(str_c(" ~ log2(", col, ")")),
+        type = "violin",
+        box = list(visible = T),
+        meanline = list(visible = T),
+        name = "log2(nCount_RNA)",
+        x0 = "nCount_RNA"
+      ) %>%
+      layout(yaxis = list(zeroline = F), shapes = list(hline(6), hline(9.5)))
+    fig <- subplot(fig1, fig2)
+    return(fig)
+  } else {
+    return(NULL)
+  }
+}

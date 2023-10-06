@@ -13,6 +13,7 @@ source("../backend.R")
 
 ui <- page_navbar(
   id = "nav",
+  selected = "filtering",
   theme = bs_theme(
     bootswatch = "pulse",
     version = 5
@@ -21,7 +22,7 @@ ui <- page_navbar(
   fillable = F,
   sidebar = sidebar(
     conditionalPanel(
-      "input.nav === '<h5>Load data</h5>'",
+      "input.nav === 'load_data'",
       markdown(
         mds = c(
           "## Flow of app",
@@ -32,7 +33,8 @@ ui <- page_navbar(
       )
     ),
     conditionalPanel(
-      "input.nav === '<h5>Filtering</h5>'",
+      "input.nav === 'filtering'",
+      # "input.nav === '<h5>Filtering</h5>'",
       markdown(
         mds = c(
           "## Flow of app",
@@ -43,7 +45,7 @@ ui <- page_navbar(
       )
     ),
     conditionalPanel(
-      "input.nav === '<h5>Results</h5>'",
+      "input.nav === 'results'",
       markdown(
         mds = c(
           "## Flow of app",
@@ -58,6 +60,7 @@ ui <- page_navbar(
   ),
   nav_panel(
     title = card_title("Load data"),
+    value = "load_data",
     card_body(
       markdown(
         mds = c(
@@ -85,6 +88,7 @@ ui <- page_navbar(
     ),
   ),
   nav_panel(
+    value = "filtering",
     title = card_title("Filtering"),
     card_body(
       markdown(
@@ -107,6 +111,11 @@ ui <- page_navbar(
         )
       ),
       plotlyOutput(outputId = "violin_plot"),
+      make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
+      splitLayout(
+        make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
+        make_qc_slider(x = pbmc_small$nFeature_RNA, col = "nFeature_RNA")
+      ),
       markdown(
         mds = c(
           "### Choose filtering parameters"
@@ -117,14 +126,11 @@ ui <- page_navbar(
           "Showing the metadata for the dataset, in order to help choose which columns to filter. Some suggestions have been selected in the checkboxes below."
         )
       ),
-      DTOutput(outputId = "metadata", width = "100%"),
-      splitLayout(
-        make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
-        make_qc_slider(x = pbmc_small$nFeature_RNA, col = "nFeature_RNA")
-      )
+      DTOutput(outputId = "metadata", width = "100%")
     ) # ,
   ),
   nav_panel(
+    value = "results",
     title = card_title("Results")
   ),
   nav_spacer(),
@@ -145,19 +151,7 @@ server <- function(input, output) {
   output$selected_directory <- renderText(placeholder_dir)
   output$nav_now <- renderText(input$nav)
 
-  # just inputting an example plot as a placeholder atm
-  fig <- plot_ly(midwest, x = ~percollege, color = ~state, type = "box")
-  fig <- pbmc_small[[]] %>% plot_ly(
-    y = ~nCount_RNA,
-    type = "violin",
-    box = list(
-      visible = T
-    ),
-    meanline = list(
-      visible = T
-    ),
-    x0 = "nCount_RNA"
-  )
+  fig <- make_qc_plots(pbmc_small, "nCount_RNA")
   output$violin_plot <- renderPlotly(fig)
   # output$colnames_output <- renderText(colnames(pbmc_small[[]]))
   output$metadata <- renderDataTable(pbmc_small[[]] %>% head(10))
