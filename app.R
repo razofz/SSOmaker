@@ -38,7 +38,6 @@ ui <- page_navbar(
     ),
     conditionalPanel(
       "input.nav === 'filtering'",
-      # "input.nav === '<h5>Filtering</h5>'",
       markdown(
         mds = c(
           "## Flow of app",
@@ -60,7 +59,6 @@ ui <- page_navbar(
       )
     ),
     uiOutput(outputId = "dataobject"),
-    # verbatimTextOutput(outputId = "dataobject"),
     fillable = T,
     position = "right"
   ),
@@ -86,19 +84,8 @@ ui <- page_navbar(
           "If the matrices were produced with e.g. a version of Cellranger below v3, `features.tsv` is instead named `genes.tsv`."
         )
       ),
-      shinyDirButton("directory", "Folder select", "Please select a folder"),
-      # shinyFilesButton(
-      #   "files",
-      #   label = "File select",
-      #   title = "Please select a file",
-      #   multiple = FALSE
-      # ),
+      shinyDirButton("directory", "Folder select", "Please select a folder", width = "40%"),
       verbatimTextOutput(outputId = "selected_directory")
-      # actionButton(
-      #   inputId = "select_files_button",
-      #   label = "Select a directory",
-      #   width = "40%"
-      # )
     ),
   ),
   nav_panel(
@@ -111,6 +98,7 @@ ui <- page_navbar(
         )
       ),
       verbatimTextOutput(outputId = "selected_directory_filtering"),
+      markdown("---"),
       # value_box(
       #   # title = "Selected directory",
       #   value = "",
@@ -150,7 +138,6 @@ ui <- page_navbar(
       ),
       helpText("Adjust the sliders to set the filtering cutoffs."),
       textOutput(outputId = "qc_value"),
-      # actionButton("show", "Show"),
       # splitLayout(
       #   make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
       #   make_qc_slider(x = pbmc_small$nFeature_RNA, col = "nFeature_RNA")
@@ -181,14 +168,13 @@ ui <- page_navbar(
   )
 )
 
+# -------------------------------------------------------------------------------
 
 server <- function(input, output, session) {
-  # somaker_dataobject <- new_somaker_dataobject()
   somaker_dataobject <- reactiveValues(
       selected_directory = "",
       nCount_RNA = 6
     )
-  # somaker_dataobject <- isolate(reactiveValuesToList(somaker_dataobject))
 
   # volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
   volumes <- c(Home = getwd(), "R Installation" = R.home(), getVolumes()()) # TODO: change back to fs::path_home() when done testing
@@ -199,14 +185,12 @@ server <- function(input, output, session) {
     allowDirCreate = FALSE
   )
 
-  # placeholder_dir <- file.path("/Users/johndoe/Downloads/pbmc_small")
   output$selected_directory <- renderPrint({
     if (is.integer(input$directory)) {
       cat("No directory has yet been selected.")
     } else {
       selected_directory <- parseDirPath(volumes, input$directory)
       somaker_dataobject$selected_directory <- selected_directory
-      # somaker_dataobject(selected_directory)
       return(selected_directory)
     }
   })
@@ -214,13 +198,9 @@ server <- function(input, output, session) {
     if (is.integer(input$directory)) {
       cat("No directory has yet been selected.")
     } else {
-      selected_directory <- parseDirPath(volumes, input$directory)
-      somaker_dataobject$selected_directory <- selected_directory
-      return(selected_directory)
+      somaker_dataobject$selected_directory
     }
   })
-  # output$dataobject <- renderUI({somaker_dataobject()})
-  # output$dataobject <- renderUI({somaker_dataobject$dir})
   output$dataobject <- renderUI({
       bar <- reactiveValuesToList(somaker_dataobject)
       result <- tagList(tags$h3("Data object"))
@@ -233,38 +213,13 @@ server <- function(input, output, session) {
       }
       return(result)
   })
-  # output$dataobject <- renderText({
-  #     bar <- reactiveValuesToList(somaker_dataobject)
-  #     result <- ""
-  #     for (i in seq_along(bar)) {
-  #       result <- paste(result, names(bar)[i], ": ", bar[[i]], "\n")
-  #     }
-  #     return(result)
-  # })
-  # output$dataobject <- renderUI({
-  #   values <- somaker_dataobject
-  #   if (length(values) > 0) {
-  #     # tagList(
-  #     #   p(reactiveValuesToList(somaker_dataobject))
-  #     #   # lapply(values, function(value) {
-  #     #   #   p(typeof(value))
-  #     #   # })
-  #     # )
-  #   } else {
-  #     p("List is empty.")
-  #   }
-  # })
-  # print(somaker_dataobject)
-  
+
 
   output$nav_now <- renderText(input$nav)
   output$qc_value <- renderText(input$qc_slider_nCount_RNA)
 
   reactive_metadata <- reactive({
-    pbmc_small[[]] # [
-    # pbmc_small[[]]$nCount_RNA > input$qc_slider_nCount_RNA[1] |
-    # pbmc_small[[]]$nCount_RNA < input$qc_slider_nCount_RNA[2]
-    # ,]
+    pbmc_small[[]]
   })
 
   output$original_n_cells <- renderText({
@@ -288,7 +243,6 @@ server <- function(input, output, session) {
   })
 
 
-  # input$qc_slider_nCount_RNA
   output$violin_plot <- renderPlotly({
     pbmc_small[[]] %>%
       plot_ly(
