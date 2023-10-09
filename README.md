@@ -1,5 +1,5 @@
-# SSOmaker
+# Seurat Object Maker
 
-Janky, but hey, it works.
+Screenshot of current state:
 
-Kind of.
+![](screenshot.png)
