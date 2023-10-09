@@ -59,6 +59,8 @@ ui <- page_navbar(
         )
       )
     ),
+    uiOutput(outputId = "dataobject"),
+    # verbatimTextOutput(outputId = "dataobject"),
     fillable = T,
     position = "right"
   ),
@@ -91,7 +93,7 @@ ui <- page_navbar(
       #   title = "Please select a file",
       #   multiple = FALSE
       # ),
-      verbatimTextOutput("directorypath")
+      verbatimTextOutput(outputId = "selected_directory")
       # actionButton(
       #   inputId = "select_files_button",
       #   label = "Select a directory",
@@ -108,7 +110,7 @@ ui <- page_navbar(
           "**Selected directory:**"
         )
       ),
-      textOutput(outputId = "selected_directory"),
+      verbatimTextOutput(outputId = "selected_directory_filtering"),
       # value_box(
       #   # title = "Selected directory",
       #   value = "",
@@ -181,8 +183,15 @@ ui <- page_navbar(
 
 
 server <- function(input, output, session) {
+  # somaker_dataobject <- new_somaker_dataobject()
+  somaker_dataobject <- reactiveValues(
+      selected_directory = "",
+      nCount_RNA = 6
+    )
+  # somaker_dataobject <- isolate(reactiveValuesToList(somaker_dataobject))
+
   # volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
-  volumes <- c(Home = getwd(), "R Installation" = R.home(), getVolumes()())
+  volumes <- c(Home = getwd(), "R Installation" = R.home(), getVolumes()()) # TODO: change back to fs::path_home() when done testing
 
   shinyDirChoose(input, "directory",
     roots = volumes, session = session,
@@ -190,37 +199,64 @@ server <- function(input, output, session) {
     allowDirCreate = FALSE
   )
 
-  # observe({
-  #   cat("\ninput$directory value:\n\n")
-  #   print(input$directory)
-  # })
-
-  # shinyDirChoose(
-  #   input = input,
-  #   id = "folder"#,
-  #   # roots = c(home = "~")
-  # )
-
-  output$directorypath <- renderPrint({
+  # placeholder_dir <- file.path("/Users/johndoe/Downloads/pbmc_small")
+  output$selected_directory <- renderPrint({
     if (is.integer(input$directory)) {
-      cat("No directory has been selected (shinyDirChoose)")
+      cat("No directory has yet been selected.")
     } else {
-      parseDirPath(volumes, input$directory)
+      selected_directory <- parseDirPath(volumes, input$directory)
+      somaker_dataobject$selected_directory <- selected_directory
+      # somaker_dataobject(selected_directory)
+      return(selected_directory)
     }
   })
-
-  # observe({
-  #   if (!is.null(input$directory)) {
-  #     chosen_folder_path <- parseDirPath(roots = c(home = "~"), input$directory)
-  #     print(chosen_folder_path)
+  output$selected_directory_filtering <- renderPrint({
+    if (is.integer(input$directory)) {
+      cat("No directory has yet been selected.")
+    } else {
+      selected_directory <- parseDirPath(volumes, input$directory)
+      somaker_dataobject$selected_directory <- selected_directory
+      return(selected_directory)
+    }
+  })
+  # output$dataobject <- renderUI({somaker_dataobject()})
+  # output$dataobject <- renderUI({somaker_dataobject$dir})
+  output$dataobject <- renderUI({
+      bar <- reactiveValuesToList(somaker_dataobject)
+      result <- tagList(tags$h3("Data object"))
+      for (i in seq_along(bar)) {
+        result <- tagList(
+          result,
+          tags$h6(names(bar)[i]),
+          tags$p(bar[[i]])
+        ) 
+      }
+      return(result)
+  })
+  # output$dataobject <- renderText({
+  #     bar <- reactiveValuesToList(somaker_dataobject)
+  #     result <- ""
+  #     for (i in seq_along(bar)) {
+  #       result <- paste(result, names(bar)[i], ": ", bar[[i]], "\n")
+  #     }
+  #     return(result)
+  # })
+  # output$dataobject <- renderUI({
+  #   values <- somaker_dataobject
+  #   if (length(values) > 0) {
+  #     # tagList(
+  #     #   p(reactiveValuesToList(somaker_dataobject))
+  #     #   # lapply(values, function(value) {
+  #     #   #   p(typeof(value))
+  #     #   # })
+  #     # )
+  #   } else {
+  #     p("List is empty.")
   #   }
   # })
+  # print(somaker_dataobject)
+  
 
-  placeholder_dir <- file.path("/Users/johndoe/Downloads/pbmc_small")
-  # output$selected_directory <- renderText(placeholder_dir)
-  output$selected_directory <- renderText(
-    parseDirPath(volumes, input$directory)
-  )
   output$nav_now <- renderText(input$nav)
   output$qc_value <- renderText(input$qc_slider_nCount_RNA)
 

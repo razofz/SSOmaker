@@ -108,9 +108,10 @@ qc_plot_ui <- function(id, label = "QC") {
 }
 
 qc_plot_server <- function(
-    id,
-    sobj,
-    col) {
+  id,
+  sobj,
+  col
+) {
   moduleServer(
     id,
     function(input, output, session) {
