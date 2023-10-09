@@ -108,10 +108,9 @@ qc_plot_ui <- function(id, label = "QC") {
 }
 
 qc_plot_server <- function(
-  id,
-  sobj,
-  col
-) {
+    id,
+    sobj,
+    col) {
   moduleServer(
     id,
     function(input, output, session) {
@@ -120,5 +119,28 @@ qc_plot_server <- function(
         min_cutoff(input$qc_slider_nCount_RNA[1])
       })
     }
+  )
+}
+
+
+new_somaker_dataobject <- function(x = data.frame()) {
+  stopifnot(is.data.frame(x))
+  foo <- list(
+    "selected_directory" = "",
+    "nCount_RNA" = list(
+      "low" = 0,
+      "high" = Inf
+    ),
+    "nFeatures_RNA" = list(
+      "low" = 0,
+      "high" = Inf
+    ),
+    "percent_mt" = list(
+      "low" = 0,
+      "high" = 100
+    )
+  )
+  return(
+    structure(foo, class = "somaker_dataobject")
   )
 }

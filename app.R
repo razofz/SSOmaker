@@ -1,146 +1,332 @@
 library(shiny)
 library(shinyFiles)
+library(plotly)
+# library(gridlayout)
+library(bslib)
+library(bsicons)
 library(Seurat)
-library(ggplot2)
+library(stringr)
+library(DT)
+library(htmltools)
+
+
 source("backend.R")
 
-port <- 3648
+options(shiny.maxRequestSize = 300 * 1024^2) # 300 MB limit
 
-# Define the UI
-ui <- fluidPage(
-  titlePanel("OUR Seurat Object Maker"),
-  sidebarLayout(
-    sidebarPanel = sidebarPanel(
-      shinyDirButton(
-        id = "folder",
-        label = "Choose a folder",
-        # "Please select a folder",
-        title = "Select a folder"
-      ),
-      numericInput(
-        inputId = "mtpc_max",
-        label = "% mito max:",
-        min = 0,
-        max = 100,
-        value = 5
-      ),
-      numericInput("mtpc_min", "% mito min:", min = 0, max = 100, value = 0),
-      numericInput("nfrna_max", "nFeature_RNA max:", min = 0, max = 1000000, value = 10000),
-      numericInput("nfrna_min", "nFeature_RNA min:", min = 0, max = 1000000, value = 200),
-      numericInput("ncrna_max", "nCount_RNA max:", min = 0, max = 1000000, value = 10000),
-      numericInput("ncrna_min", "nCount_RNA min:", min = 0, max = 1000000, value = 100),
-      numericInput("scale.fac", "Scale factor:", min = 0, max = 1000000, value = 10000),
-      numericInput("hvgs", "Number of HVGs:", min = 0, max = 10000, value = 2000),
-      numericInput("ncomp", "Number of PCAs:", min = 3, max = 100, value = 10),
-      numericInput("res", "Cluster resolution:", min = 0.1, max = 3, value = 0.5),
-      downloadButton("download", "Download Seurat Object")
+ui <- page_navbar(
+  id = "nav",
+  selected = "load_data",
+  # selected = "filtering",
+  theme = bs_theme(
+    bootswatch = "pulse",
+    version = 5
+  ),
+  title = "Seurat Object Maker",
+  fillable = F,
+  sidebar = sidebar(
+    conditionalPanel(
+      "input.nav === 'load_data'",
+      markdown(
+        mds = c(
+          "## Flow of app",
+          "1. **Select a directory**",
+          "2. Filter the data (QC)",
+          "3. Results"
+        )
+      )
     ),
-    mainPanel = mainPanel(
-      h4("Selected Folder Path:"),
-      verbatimTextOutput("folder_path"),
-      h4("Violin plots of basic characteristics:"),
-      plotOutput("vlnplot"),
-      h4("Basic QC:"),
-      plotOutput("qc"),
-      h4("Basic QC post filter:"),
-      plotOutput("qc.pf"),
-      h4("HVGs:"),
-      plotOutput("hvg.plot"),
-      h4("PCA plot:"),
-      plotOutput("pca.plot"),
-      h4("UMAP:"),
-      plotOutput("umap")
+    conditionalPanel(
+      "input.nav === 'filtering'",
+      # "input.nav === '<h5>Filtering</h5>'",
+      markdown(
+        mds = c(
+          "## Flow of app",
+          "1. Select a directory",
+          "2. **Filter the data (QC)**",
+          "3. Results"
+        )
+      )
+    ),
+    conditionalPanel(
+      "input.nav === 'results'",
+      markdown(
+        mds = c(
+          "## Flow of app",
+          "1. Select a directory",
+          "2. Filter the data (QC)",
+          "3. **Results**"
+        )
+      )
+    ),
+    fillable = T,
+    position = "right"
+  ),
+  nav_panel(
+    title = card_title("Load data"),
+    value = "load_data",
+    card_body(
+      markdown(
+        mds = c(
+          "## Select a directory",
+          "Select the **directory** (**folder**) where the _feature-barcode_ count matrices are. The files should be in the [Matrix Market Exchange format](https://math.nist.gov/MatrixMarket/formats.html) that e.g. the [Cellranger](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/output/matrices) pipeline outputs.",
+          "",
+          "That format consists of these files:",
+          "",
+          "```bash",
+          "    matrix.mtx",
+          "    features.tsv",
+          "    barcodes.tsv",
+          "```",
+          "",
+          "The files can also be compressed (in the `gzip` format) and then have the file extension `.gz`, e.g. `matrix.mtx.gz`.",
+          "",
+          "If the matrices were produced with e.g. a version of Cellranger below v3, `features.tsv` is instead named `genes.tsv`."
+        )
+      ),
+      shinyDirButton("directory", "Folder select", "Please select a folder"),
+      # shinyFilesButton(
+      #   "files",
+      #   label = "File select",
+      #   title = "Please select a file",
+      #   multiple = FALSE
+      # ),
+      verbatimTextOutput("directorypath")
+      # actionButton(
+      #   inputId = "select_files_button",
+      #   label = "Select a directory",
+      #   width = "40%"
+      # )
+    ),
+  ),
+  nav_panel(
+    value = "filtering",
+    title = card_title("Filtering"),
+    card_body(
+      markdown(
+        mds = c(
+          "**Selected directory:**"
+        )
+      ),
+      textOutput(outputId = "selected_directory"),
+      # value_box(
+      #   # title = "Selected directory",
+      #   value = "",
+      #   title = textOutput(outputId = "selected_directory"),
+      #   # value = textOutput(outputId = "selected_directory"),
+      #   showcase = bsicons::bs_icon("file-earmark-spreadsheet"), # , size = NULL),
+      #   theme_color = "success"
+      # ),
+      splitLayout(
+        value_box(
+          title = "Original number of cells",
+          value = textOutput(outputId = "original_n_cells"),
+          showcase = bsicons::bs_icon("clipboard-data"),
+          theme_color = "success"
+        ),
+        value_box(
+          title = "Number of cells left after filtering",
+          value = textOutput(outputId = "filtered_n_cells"),
+          showcase = bsicons::bs_icon("receipt-cutoff"),
+          theme_color = "warning"
+        )
+      ),
+      markdown(
+        mds = c(
+          "### Violin plots of basic characteristics"
+        )
+      ),
+      plotlyOutput(outputId = "violin_plot"),
+      # make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
+      sliderInput(
+        inputId = str_c("qc_slider_", "nCount_RNA"),
+        label = "nCount_RNA filtering",
+        min = range(pbmc_small$nCount_RNA, na.rm = TRUE)[1],
+        max = range(pbmc_small$nCount_RNA, na.rm = TRUE)[2],
+        value = range(pbmc_small$nCount_RNA, na.rm = TRUE),
+        width = "75%"
+      ),
+      helpText("Adjust the sliders to set the filtering cutoffs."),
+      textOutput(outputId = "qc_value"),
+      # actionButton("show", "Show"),
+      # splitLayout(
+      #   make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
+      #   make_qc_slider(x = pbmc_small$nFeature_RNA, col = "nFeature_RNA")
+      # ),
+      markdown(
+        mds = c(
+          "### Choose filtering parameters"
+        )
+      ),
+      textOutput(outputId = "filtered_dimensions"),
+      markdown(
+        mds = c(
+          "Showing the metadata for the dataset, in order to help choose which columns to filter. Some suggestions have been selected in the checkboxes below."
+        )
+      ),
+      DT::dataTableOutput("metadata")
+    ) # ,
+  ),
+  nav_panel(
+    value = "results",
+    title = card_title("Results")
+  ),
+  nav_spacer(),
+  nav_item(
+    markdown(
+      '<img src = "https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe" width="200px" />'
     )
   )
 )
 
-# Define the server
+
 server <- function(input, output, session) {
-  shinyDirChoose(
-    input = input,
-    id = "folder",
-    roots = c(home = "~")
+  # volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
+  volumes <- c(Home = getwd(), "R Installation" = R.home(), getVolumes()())
+
+  shinyDirChoose(input, "directory",
+    roots = volumes, session = session,
+    restrictions = system.file(package = "base"),
+    allowDirCreate = FALSE
   )
 
-  observe({
-    if (!is.null(input$folder)) {
-      chosen_folder_path <- parseDirPath(roots = c(home = "~"), input$folder)
-      print(chosen_folder_path)
-      output$folder_path <- renderPrint({
-        chosen_folder_path
-        print(chosen_folder_path)
-        # so.data <- Read10X(data.dir = chosen_folder_path)
-        so.data <- read_data(chosen_folder_path)
-        print("Dimensions of data uploaded:")
-        print(dim(so.data))
-        so <- CreateSeuratObject(counts = so.data, project = "shiny", min.cells = 3, min.features = 200)
-        so[["percent.mt"]] <- PercentageFeatureSet(so, pattern = "^MT-")
+  # observe({
+  #   cat("\ninput$directory value:\n\n")
+  #   print(input$directory)
+  # })
 
-        qc1 <- VlnPlot(so, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
+  # shinyDirChoose(
+  #   input = input,
+  #   id = "folder"#,
+  #   # roots = c(home = "~")
+  # )
 
-        output$vlnplot <- renderPlot({
-          qc1
-        })
-
-        plot1 <- FeatureScatter(so, feature1 = "nCount_RNA", feature2 = "percent.mt")
-        plot2 <- FeatureScatter(so, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-        output$qc <- renderPlot({
-          plot1 + plot2
-        })
-
-        so <- subset(so, subset = nFeature_RNA > input$nfrna_min & nFeature_RNA < input$nfrna_max & percent.mt < input$mtpc_max)
-        print(dim(so))
-
-        plot1qc <- FeatureScatter(so, feature1 = "nCount_RNA", feature2 = "percent.mt")
-        plot2qc <- FeatureScatter(so, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
-        output$qc.pf <- renderPlot({
-          plot1qc + plot2qc
-        })
-
-        so <- NormalizeData(so, normalization.method = "LogNormalize", scale.factor = input$scale.fac)
-
-        so <- FindVariableFeatures(so, selection.method = "vst", nfeatures = input$hvgs)
-
-        top10 <- head(VariableFeatures(so), 10)
-
-        # plot variable features with and without labels
-        plot1h <- VariableFeaturePlot(so)
-        plot2h <- LabelPoints(plot = plot1h, points = top10, repel = TRUE)
-        output$hvg.plot <- renderPlot({
-          plot1h + plot2h
-        })
-
-        all.genes <- rownames(so)
-        so <- ScaleData(so, features = all.genes)
-
-        so <- RunPCA(so, features = VariableFeatures(object = so))
-
-        dimplot <- DimPlot(so, reduction = "pca")
-
-        output$pca.plot <- renderPlot({
-          dimplot
-        })
-
-        so <- FindNeighbors(so, dims = 1:input$ncomp)
-        so <- FindClusters(so, resolution = input$res)
-        so <- RunUMAP(so, dims = 1:input$ncomp)
-        umap <- DimPlot(so, reduction = "umap")
-
-        output$umap <- renderPlot(umap)
-
-        output$download <- downloadHandler(
-          filename = function() {
-            paste("Seurat_Object_SSOMoutput_", Sys.Date(), ".rds", sep = "")
-          },
-          content = function(filename) {
-            saveRDS(so, filename)
-          }
-        )
-      })
+  output$directorypath <- renderPrint({
+    if (is.integer(input$directory)) {
+      cat("No directory has been selected (shinyDirChoose)")
+    } else {
+      parseDirPath(volumes, input$directory)
     }
   })
+
+  # observe({
+  #   if (!is.null(input$directory)) {
+  #     chosen_folder_path <- parseDirPath(roots = c(home = "~"), input$directory)
+  #     print(chosen_folder_path)
+  #   }
+  # })
+
+  placeholder_dir <- file.path("/Users/johndoe/Downloads/pbmc_small")
+  # output$selected_directory <- renderText(placeholder_dir)
+  output$selected_directory <- renderText(
+    parseDirPath(volumes, input$directory)
+  )
+  output$nav_now <- renderText(input$nav)
+  output$qc_value <- renderText(input$qc_slider_nCount_RNA)
+
+  reactive_metadata <- reactive({
+    pbmc_small[[]] # [
+    # pbmc_small[[]]$nCount_RNA > input$qc_slider_nCount_RNA[1] |
+    # pbmc_small[[]]$nCount_RNA < input$qc_slider_nCount_RNA[2]
+    # ,]
+  })
+
+  output$original_n_cells <- renderText({
+    nrow(reactive_metadata()[, ])
+  })
+  output$filtered_n_cells <- renderText({
+    nrow(reactive_metadata()[
+      pbmc_small[[]]$nCount_RNA >= input$qc_slider_nCount_RNA[1] &
+        pbmc_small[[]]$nCount_RNA <= input$qc_slider_nCount_RNA[2],
+    ])
+  })
+  output$filtered_dimensions <- renderText({
+    str_c(
+      "Number of cells before filtering: ",
+      nrow(reactive_metadata()[pbmc_small[[]]$nCount_RNA >= input$qc_slider_nCount_RNA[1], ]),
+      " cells. ",
+      "Cells left after filtering: ",
+      nrow(reactive_metadata()[pbmc_small[[]]$nCount_RNA <= input$qc_slider_nCount_RNA[2], ]),
+      " cells."
+    )
+  })
+
+
+  # input$qc_slider_nCount_RNA
+  output$violin_plot <- renderPlotly({
+    pbmc_small[[]] %>%
+      plot_ly(
+        y = as.formula(str_c(" ~ ", "nCount_RNA")),
+        type = "violin",
+        box = list(visible = T),
+        meanline = list(visible = T),
+        name = "nCount_RNA",
+        x0 = "nCount_RNA"
+      ) %>%
+      layout(
+        yaxis = list(zeroline = F),
+        shapes = list(
+          # hline(min_cutoff),
+          hline(input$qc_slider_nCount_RNA[1]),
+          hline(input$qc_slider_nCount_RNA[2])
+          # hline(max_cutoff)
+        )
+      ) # %>%
+    # config(
+    #   selectmode = "lasso",
+    # )
+  })
+
+  # observeEvent(input$show, {
+  #     showNotification(
+  #       ui = markdown(c(
+  #         "## This is a notification. ",
+  #         "_Take care._"
+  #       )),
+  #       type = "warning"
+  #     )
+  #   })
+
+
+  # fig <- make_qc_plots(
+  #   sobj = pbmc_small,
+  #   col = "nCount_RNA",
+  #   min_cutoff = input$qc_slider_nCount_RNA[1],
+  #   max_cutoff = input$qc_slider_nCount_RNA[2],
+  # )
+  # fig <- callModule(make_qc_plots, "backend")
+  # output$violin_plot <- renderPlotly(
+  #   fig
+  # make_qc_plots(
+  #   sobj = pbmc_small,
+  #   col = "nCount_RNA",
+  #   input = input,
+  #   output = output,
+  #   session = session,
+  # )
+  # )
+  # output$violin_plot <- renderPlotly({
+  #   reactive(make_qc_plots(
+  #     sobj = pbmc_small,
+  #     col = "nCount_RNA",
+  #     min_cutoff = input$qc_slider_nCount_RNA[1],
+  #     max_cutoff = input$qc_slider_nCount_RNA[2],
+  #   ))
+  # })
+  # input$qc_slider_nCount_RNA
+  output$colnames_output <- renderText(colnames(pbmc_small[[]]))
+  output$metadata <- DT::renderDataTable({
+    DT::datatable(
+      pbmc_small[[]],
+      caption = "Metadata",
+      options = list(
+        pageLength = 5
+      ),
+      fillContainer = T
+      # style = 'bootstrap'
+    )
+  })
+  # print(session$clientData)
 }
 
-# Run the Shiny app
-shinyApp(ui, server, options = list("launch.browser" = F))
-# runApp(".")
+shinyApp(ui, server)
