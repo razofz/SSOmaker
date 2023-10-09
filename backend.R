@@ -10,6 +10,37 @@ detect_features_format <- function(features) {
   #   e.g. if line starts with "ENS", that is probably a geneID column
 }
 
+mat_files <- c(
+  "matrix.mtx",
+  "features.tsv",
+  "barcodes.tsv"
+)
+
+check_files <- function(directory, suffix) {
+  return(all(as.logical(lapply(
+    file.path(directory, str_c(mat_files, suffix)),
+    file.exists
+  ))))
+}
+
+
+# Function to validate the selected directory (customize as needed)
+validate_directory <- function(directory) {
+  # Add your validation logic here
+  if (!dir.exists(directory)) {
+    return(FALSE)
+  }
+  # TODO: add check for cellranger v2 `genes.tsv` as well
+  if (!check_files(directory, ".gz")) {
+    if (!check_files(directory, "")) {
+      return(FALSE)
+    }
+  }
+
+  # Return TRUE if the directory is valid, FALSE otherwise
+  return(TRUE)
+}
+
 read_data <- function(
     chosen_folder,
     project_name = "shiny") {
@@ -108,10 +139,9 @@ qc_plot_ui <- function(id, label = "QC") {
 }
 
 qc_plot_server <- function(
-  id,
-  sobj,
-  col
-) {
+    id,
+    sobj,
+    col) {
   moduleServer(
     id,
     function(input, output, session) {

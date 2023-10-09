@@ -45,7 +45,19 @@ ui <- page_navbar(
           "2. **Filter the data (QC)**",
           "3. Results"
         )
-      )
+      ) # ,
+      # value_box(
+      #   title = "Original number of cells",
+      #   value = textOutput(outputId = "original_n_cells_side"),
+      #   showcase = bsicons::bs_icon("clipboard-data"),
+      #   theme_color = "success"
+      # ),
+      # value_box(
+      #   title = "Number of cells left after filtering",
+      #   value = textOutput(outputId = "filtered_n_cells_side"),
+      #   showcase = bsicons::bs_icon("receipt-cutoff"),
+      #   theme_color = "warning"
+      # )
     ),
     conditionalPanel(
       "input.nav === 'results'",
@@ -84,8 +96,26 @@ ui <- page_navbar(
           "If the matrices were produced with e.g. a version of Cellranger below v3, `features.tsv` is instead named `genes.tsv`."
         )
       ),
-      shinyDirButton("directory", "Folder select", "Please select a folder", width = "40%"),
-      verbatimTextOutput(outputId = "selected_directory")
+      layout_column_wrap(
+        width = 1,
+        div(
+          style = "display: flex; justify-content: center;",
+          shinyDirButton(
+            "directory",
+            "Folder select",
+            "Please select a folder",
+            icon = bsicons::bs_icon("folder"),
+            buttonType = "primary",
+            style = "width: 40%;"
+          )
+        ),
+        # div(
+        #   style = "display: flex; justify-content: center;",
+        # verbatimTextOutput(outputId = "selected_directory"),
+        uiOutput("newUIComponents")
+        # actionButton("do", "Click Me")
+        # )
+      )
     ),
   ),
   nav_panel(
@@ -94,10 +124,15 @@ ui <- page_navbar(
     card_body(
       markdown(
         mds = c(
-          "**Selected directory:**"
+          "# Filtering (QC)"
         )
       ),
-      verbatimTextOutput(outputId = "selected_directory_filtering"),
+      # markdown(
+      #   mds = c(
+      #     "**Selected directory:**"
+      #   )
+      # ),
+      # verbatimTextOutput(outputId = "selected_directory_filtering"),
       markdown("---"),
       # value_box(
       #   # title = "Selected directory",
@@ -107,7 +142,8 @@ ui <- page_navbar(
       #   showcase = bsicons::bs_icon("file-earmark-spreadsheet"), # , size = NULL),
       #   theme_color = "success"
       # ),
-      splitLayout(
+      layout_column_wrap(
+        width = 2,
         value_box(
           title = "Original number of cells",
           value = textOutput(outputId = "original_n_cells"),
@@ -121,22 +157,63 @@ ui <- page_navbar(
           theme_color = "warning"
         )
       ),
+      # ) |>
+      #   popover(
+      #     "Tooltip text",
+      #     title = "Help"
+      #   ),
       markdown(
         mds = c(
           "### Violin plots of basic characteristics"
         )
       ),
-      plotlyOutput(outputId = "violin_plot"),
-      # make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
-      sliderInput(
-        inputId = str_c("qc_slider_", "nCount_RNA"),
-        label = "nCount_RNA filtering",
-        min = range(pbmc_small$nCount_RNA, na.rm = TRUE)[1],
-        max = range(pbmc_small$nCount_RNA, na.rm = TRUE)[2],
-        value = range(pbmc_small$nCount_RNA, na.rm = TRUE),
-        width = "75%"
+      layout_column_wrap(
+        width = "600px",
+        div(
+          style = "display: flex; justify-content: center;",
+          div(
+            div(
+              style = "display: flex; justify-content: center;",
+              tooltip(
+                span(
+                  helpText("Need help? "),
+                  bs_icon("info-circle")
+                ),
+                str_c(
+                  "Hover over the plot to see extra statistics about the metadata column. ",
+                  "You can also drag to zoom in on a specific area of the plot."
+                )
+              )
+            ),
+            plotlyOutput(outputId = "violin_plot"),
+            div(
+              style = "display: flex; justify-content: center;",
+              sliderInput(
+                inputId = str_c("qc_slider_", "nCount_RNA"),
+                label = "nCount_RNA",
+                min = range(pbmc_small$nCount_RNA, na.rm = TRUE)[1],
+                max = range(pbmc_small$nCount_RNA, na.rm = TRUE)[2],
+                value = range(pbmc_small$nCount_RNA, na.rm = TRUE),
+                width = "80%"
+              ),
+            ),
+            div(
+              style = "display: flex; justify-content: center;",
+              span(
+                helpText("Adjust the sliders to set the filtering cutoffs."),
+                tooltip(
+                  bs_icon("info-circle"),
+                  "Drag the sliders to set the cutoffs for this metadata column. ",
+                  "Notice the change in the black lines in the plot above, which correspond to the selected cutoffs. ",
+                  "Also note that the number of cells displayed up top is updated according to how you change the sliders.",
+                  placement = "right"
+                )
+              )
+            ),
+            style = " width: 60%; max-width: 600px;",
+          ),
+        )
       ),
-      helpText("Adjust the sliders to set the filtering cutoffs."),
       textOutput(outputId = "qc_value"),
       # splitLayout(
       #   make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
@@ -165,53 +242,112 @@ ui <- page_navbar(
     markdown(
       '<img src = "https://www.staff.lu.se/sites/staff.lu.se/files/styles/lu_wysiwyg_full_tablet/public/2021-04/Lunduniversity-horisontal.png.webp?itok=_rp_OxRe" width="200px" />'
     )
-  )
+  ) # ,
+  # tags$head(tags$script(src = "./message_handler.js"))
 )
 
 # -------------------------------------------------------------------------------
 
 server <- function(input, output, session) {
   somaker_dataobject <- reactiveValues(
-      selected_directory = "",
-      nCount_RNA = 6
-    )
+    selected_directory = character(0),
+    nCount_RNA = 6
+  )
 
   # volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
   volumes <- c(Home = getwd(), "R Installation" = R.home(), getVolumes()()) # TODO: change back to fs::path_home() when done testing
 
-  shinyDirChoose(input, "directory",
-    roots = volumes, session = session,
+  shinyDirChoose(
+    input,
+    "directory",
+    roots = volumes,
+    session = session,
     restrictions = system.file(package = "base"),
     allowDirCreate = FALSE
   )
 
-  output$selected_directory <- renderPrint({
-    if (is.integer(input$directory)) {
-      cat("No directory has yet been selected.")
-    } else {
+  # Validate and store the selected directory
+  observeEvent(input$directory, {
+    if (!is.integer(input$directory)) {
       selected_directory <- parseDirPath(volumes, input$directory)
       somaker_dataobject$selected_directory <- selected_directory
-      return(selected_directory)
+      # somaker_dataobject$selected_directory <- parseDirPath(roots = c(wd = getwd()), input$directory)
     }
   })
-  output$selected_directory_filtering <- renderPrint({
-    if (is.integer(input$directory)) {
-      cat("No directory has yet been selected.")
-    } else {
-      somaker_dataobject$selected_directory
-    }
-  })
-  output$dataobject <- renderUI({
-      bar <- reactiveValuesToList(somaker_dataobject)
-      result <- tagList(tags$h3("Data object"))
-      for (i in seq_along(bar)) {
-        result <- tagList(
-          result,
-          tags$h6(names(bar)[i]),
-          tags$p(bar[[i]])
-        ) 
+
+  # Display new UI components only if a valid directory is selected
+  output$newUIComponents <- renderUI({
+    if (length(somaker_dataobject$selected_directory) > 0) {
+      # Check if the selected directory is valid (e.g., by verifying the contents)
+      is_valid_dir <- validate_directory(somaker_dataobject$selected_directory)
+      if (is_valid_dir) {
+        return(
+          div(
+            markdown(str_c(
+              "`",
+              somaker_dataobject$selected_directory,
+              "`",
+              " is a valid count matrix directory.\n\n",
+              "Loading data into `Seurat`.."
+            ))
+            # Add new UI elements as needed
+          )
+        )
+      } else if (!is_valid_dir) {
+        return(
+          div(
+            markdown(str_c(
+              "`",
+              somaker_dataobject$selected_directory,
+              "`",
+              " is _not_ a valid count matrix directory. ",
+              "Please see the description of the format above."
+            ))
+            # Add new UI elements as needed
+          )
+        )
+      } else {
+        return(NULL)
       }
-      return(result)
+    } else {
+      return(NULL) # Don't show new UI if no directory is selected
+    }
+  })
+
+
+  # observeEvent(input$do, {
+  #   session$sendCustomMessage(type = 'testmessage',
+  #     message = 'Thank you for clicking')
+  # })
+
+  # output$selected_directory <- renderPrint({
+  #   if (is.integer(input$directory)) {
+  #     cat("No directory has yet been selected.")
+  #   } else {
+  #     selected_directory <- parseDirPath(volumes, input$directory)
+  #     somaker_dataobject$selected_directory <- selected_directory
+  #     return(selected_directory)
+  #   }
+  # })
+
+  # output$selected_directory_filtering <- renderPrint({
+  #   if (length(somaker_dataobject$selected_directory) > 0) {
+  #     somaker_dataobject$selected_directory
+  #   } else {
+  #     cat("No directory has yet been selected.")
+  #   }
+  # })
+  output$dataobject <- renderUI({
+    bar <- reactiveValuesToList(somaker_dataobject)
+    result <- tagList(tags$h3("Data object"))
+    for (i in seq_along(bar)) {
+      result <- tagList(
+        result,
+        tags$h6(names(bar)[i]),
+        tags$p(bar[[i]])
+      )
+    }
+    return(result)
   })
 
 
@@ -231,6 +367,17 @@ server <- function(input, output, session) {
         pbmc_small[[]]$nCount_RNA <= input$qc_slider_nCount_RNA[2],
     ])
   })
+
+  # output$original_n_cells_side <- renderText({
+  #   nrow(reactive_metadata()[, ])
+  # })
+  # output$filtered_n_cells_side <- renderText({
+  #   nrow(reactive_metadata()[
+  #     pbmc_small[[]]$nCount_RNA >= input$qc_slider_nCount_RNA[1] &
+  #       pbmc_small[[]]$nCount_RNA <= input$qc_slider_nCount_RNA[2],
+  #   ])
+  # })
+
   output$filtered_dimensions <- renderText({
     str_c(
       "Number of cells before filtering: ",
