@@ -24,9 +24,7 @@ check_files <- function(directory, suffix) {
 }
 
 
-# Function to validate the selected directory (customize as needed)
 validate_directory <- function(directory) {
-  # Add your validation logic here
   if (!dir.exists(directory)) {
     return(FALSE)
   }
@@ -36,10 +34,9 @@ validate_directory <- function(directory) {
       return(FALSE)
     }
   }
-
-  # Return TRUE if the directory is valid, FALSE otherwise
   return(TRUE)
 }
+
 
 read_data <- function(
     chosen_folder,
@@ -49,8 +46,32 @@ read_data <- function(
   # read in features file to see what structure it has, and what column is the gene name column
   # and set below accordingly
   so_data <- Read10X(chosen_folder, cell.column = NULL, gene.column = 1)
+  # handle the case of e.g. CITE-seq, where there are multiple assays.
+  # pick out only the RNA assay for now
+  if (class(so_data) == "list") {
+    print(names(so_data))
+    so_data <- so_data[[
+      grep(
+        pattern = paste(c("RNA", "Gene Expression"), collapse = "|"),
+        x = names(so_data),
+        ignore.case = TRUE,
+        value = TRUE
+      )
+    ]]
+  }
   # so <- CreateSeuratObject(so_data, project = project_name)
   return(so_data)
+}
+
+make_seurat_object <- function(
+    data_matrix) {
+  print("Dimensions of data uploaded:")
+  print(dim(data_matrix))
+  sobj <- CreateSeuratObject(counts = data_matrix, project = "SOM") # , min.cells = 3, min.features = 200)
+  # print(sobj)
+  # print(sobj[[]] %>% head)
+  sobj[["percent_mt"]] <- PercentageFeatureSet(sobj, pattern = "^MT-")
+  return(sobj)
 }
 
 make_qc_slider <- function(x, col) {
