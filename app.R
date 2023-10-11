@@ -7,6 +7,7 @@ library(bslib)
 library(bsicons)
 library(Seurat)
 library(stringr)
+library(dplyr)
 library(DT)
 library(htmltools)
 
@@ -118,7 +119,16 @@ ui <- tagList(
         # actionButton("do", "Click Me")
         # )
         # )
-        uiOutput("dir_validation_UI")
+        shinyjs::hidden(uiOutput("dir_valid_UI")),
+        shinyjs::hidden(uiOutput("dir_invalid_UI")),
+        shinyjs::hidden(
+          div(id = "data_preview_container",
+            shinycssloaders::withSpinner(
+              DT::dataTableOutput(outputId = "data_preview")
+            )
+          )
+        )
+        # uiOutput("dir_validation_UI")
       ),
     ),
     nav_panel(
@@ -256,12 +266,15 @@ server <- function(input, output, session) {
   somaker_dataobject <- reactiveValues(
     selected_directory = character(0),
     is_valid_directory = FALSE,
+    is_valid_data = FALSE,
     nCount_RNA_low = 6,
     nCount_RNA_high = 600,
     nFeature_RNA_high = 600,
     nFeature_RNA_low = 200,
     percent_mito_high = 20
   )
+
+  metadata <- reactiveValues(data = data.frame())
 
   # volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
   volumes <- c(Home = getwd(), "R Installation" = R.home(), getVolumes()()) # TODO: change back to fs::path_home() when done testing
@@ -280,78 +293,90 @@ server <- function(input, output, session) {
     if (!is.integer(input$directory)) {
       selected_directory <- parseDirPath(volumes, input$directory)
       somaker_dataobject$selected_directory <- selected_directory
+      if (length(somaker_dataobject$selected_directory) > 0) {
+        is_valid_dir <- validate_directory(somaker_dataobject$selected_directory)
+        somaker_dataobject$is_valid_directory <- is_valid_dir
+        if (is_valid_dir) {
+  #       somaker_dataobject$start_seurat_processing <- TRUE
+          shinyjs::hide("dir_invalid_UI")
+          shinyjs::show("dir_valid_UI")
+        } else {
+          shinyjs::hide("dir_valid_UI")
+          shinyjs::show("dir_invalid_UI")
+        }
+      } else {
+        shinyjs::hide("dir_valid_UI")
+        shinyjs::hide("dir_invalid_UI")
+      }
       # somaker_dataobject$selected_directory <- parseDirPath(roots = c(wd = getwd()), input$directory)
     }
   })
 
-  # Display new UI components only if a valid directory is selected
-  output$dir_validation_UI <- renderUI({
-    if (length(somaker_dataobject$selected_directory) > 0) {
-      is_valid_dir <- validate_directory(somaker_dataobject$selected_directory)
-      somaker_dataobject$is_valid_directory <- is_valid_dir
-      if (is_valid_dir) {
-        somaker_dataobject$start_seurat_processing <- TRUE
-        return(
-          div(
-            markdown(str_c(
-              "`", somaker_dataobject$selected_directory, "`",
-              " is a valid count matrix directory.\n\n",
-              "Loading data into `Seurat`.."
-            ))
-          )
+  output$dir_valid_UI <- renderUI({
+    div(
+      markdown(str_c(
+        "`", somaker_dataobject$selected_directory, "`",
+        " is a valid count matrix directory.\n\n",
+        "Press button below to load the data into `Seurat`."
+      )),
+      div(
+        style = "display: flex; justify-content: center;",
+        actionButton(
+          "load_into_seurat",
+          label = HTML(
+            bsicons::bs_icon("box-arrow-in-up-right"),
+            # bsicons::bs_icon("cloud-arrow-up"),
+            # bsicons::bs_icon("box-seam-fill"),
+            " Load data into Seurat"
+          ),
+          class = "btn-success",
+          style = "width: 40%;"#,
+          # icon = icon(
+          #   "box-seam-fill",
+          #   lib = "glyphicon"
+          # )
         )
-      } else if (!is_valid_dir) {
-        return(
-          div(
-            markdown(str_c(
-              "`", somaker_dataobject$selected_directory, "`",
-              " is _not_ a valid count matrix directory. ",
-              "Please see the description of the format above."
-            ))
-          )
-        )
-      } else {
-        return(NULL)
-      }
-    } else {
-      return(NULL) # Don't show new UI if no directory is selected
-    }
+      )
+    )
   })
 
-  observeEvent(somaker_dataobject$start_seurat_processing, {
-    if (somaker_dataobject$start_seurat_processing == TRUE) {
-      somaker_dataobject$start_seurat_processing <- FALSE
-      print("Starting Seurat processing")
+  output$dir_invalid_UI <- renderUI({
+    markdown(str_c(
+      "`", somaker_dataobject$selected_directory, "`",
+      " is _not_ a valid count matrix directory. ",
+      "Please see the description of the format above."
+    ))
+  })
+
+  shinyjs::onclick("load_into_seurat", 
+    expr = {
+      # shinyjs::alert("loading into Seurat")
       sobj_data <- read_data(somaker_dataobject$selected_directory)
       print(sobj_data[1:5, 1:5])
       sobj <- make_seurat_object(sobj_data)
       print(sobj)
       print(sobj[[]] %>% head())
+      somaker_dataobject$is_valid_data <- TRUE
+    }
+  )
+
+  output$data_preview <- DT::renderDataTable({
+    DT::datatable(
+      head(metadata$data),
+      caption = "Metadata"
+    )
+  })
+
+  observeEvent(somaker_dataobject$is_valid_data, {
+    if (somaker_dataobject$is_valid_data == TRUE) {
+      print("observeEvent triggered")
+      # print(sobj)
+      metadata$data <- sobj[[]]
+      shinyjs::show("data_preview_container")
     }
   })
 
-  # observeEvent(input$do, {
-  #   session$sendCustomMessage(type = 'testmessage',
-  #     message = 'Thank you for clicking')
-  # })
 
-  # output$selected_directory <- renderPrint({
-  #   if (is.integer(input$directory)) {
-  #     cat("No directory has yet been selected.")
-  #   } else {
-  #     selected_directory <- parseDirPath(volumes, input$directory)
-  #     somaker_dataobject$selected_directory <- selected_directory
-  #     return(selected_directory)
-  #   }
-  # })
-
-  # output$selected_directory_filtering <- renderPrint({
-  #   if (length(somaker_dataobject$selected_directory) > 0) {
-  #     somaker_dataobject$selected_directory
-  #   } else {
-  #     cat("No directory has yet been selected.")
-  #   }
-  # })
   output$dataobject <- renderUI({
     bar <- reactiveValuesToList(somaker_dataobject)
     result <- tagList(tags$h3("Data object"))
