@@ -121,13 +121,16 @@ ui <- tagList(
         # )
         shinyjs::hidden(uiOutput("dir_valid_UI")),
         shinyjs::hidden(uiOutput("dir_invalid_UI")),
-        shinyjs::hidden(
-          div(id = "data_preview_container",
-            shinycssloaders::withSpinner(
-              DT::dataTableOutput(outputId = "data_preview")
-            )
-          )
-        )
+        # shinyjs::hidden(
+        #   div(
+        #     id = "data_preview_container",
+        #     # shinycssloaders::withSpinner(
+        #     #   DT::dataTableOutput(outputId = "data_preview")
+        #     # ),
+        #     # verbatimTextOutput("sobj_out")
+        #   )
+        # ),
+        shinyjs::hidden(uiOutput("start_processing_UI"))
         # uiOutput("dir_validation_UI")
       ),
     ),
@@ -263,6 +266,10 @@ ui <- tagList(
 # -------------------------------------------------------------------------------
 
 server <- function(input, output, session) {
+  ################################################################################
+  # Variable setup
+  ################################################################################
+
   somaker_dataobject <- reactiveValues(
     selected_directory = character(0),
     is_valid_directory = FALSE,
@@ -275,8 +282,31 @@ server <- function(input, output, session) {
   )
 
   metadata <- reactiveValues(data = data.frame())
+  reactive_sobj <- reactiveValues(data = pbmc_small)
 
-  # volumes <- c(Home = fs::path_home(), "R Installation" = R.home(), getVolumes()())
+  ################################################################################
+  # Sidebar
+  ################################################################################
+
+  output$nav_now <- renderText(input$nav)
+
+  output$dataobject <- renderUI({
+    bar <- reactiveValuesToList(somaker_dataobject)
+    result <- tagList(tags$h3("Data object"))
+    for (i in seq_along(bar)) {
+      result <- tagList(
+        result,
+        tags$h6(names(bar)[i]),
+        tags$p(bar[[i]])
+      )
+    }
+    return(result)
+  })
+
+  ################################################################################
+  # Load data tab
+  ################################################################################
+
   volumes <- c(Home = getwd(), "R Installation" = R.home(), getVolumes()()) # TODO: change back to fs::path_home() when done testing
 
   shinyDirChoose(
@@ -297,7 +327,6 @@ server <- function(input, output, session) {
         is_valid_dir <- validate_directory(somaker_dataobject$selected_directory)
         somaker_dataobject$is_valid_directory <- is_valid_dir
         if (is_valid_dir) {
-  #       somaker_dataobject$start_seurat_processing <- TRUE
           shinyjs::hide("dir_invalid_UI")
           shinyjs::show("dir_valid_UI")
         } else {
@@ -329,12 +358,8 @@ server <- function(input, output, session) {
             # bsicons::bs_icon("box-seam-fill"),
             " Load data into Seurat"
           ),
-          class = "btn-success",
-          style = "width: 40%;"#,
-          # icon = icon(
-          #   "box-seam-fill",
-          #   lib = "glyphicon"
-          # )
+          class = "btn-warning",
+          style = "width: 40%;"
         )
       )
     )
@@ -348,14 +373,14 @@ server <- function(input, output, session) {
     ))
   })
 
-  shinyjs::onclick("load_into_seurat", 
+  shinyjs::onclick("load_into_seurat",
     expr = {
       # shinyjs::alert("loading into Seurat")
       sobj_data <- read_data(somaker_dataobject$selected_directory)
-      print(sobj_data[1:5, 1:5])
+      # print(sobj_data[1:5, 1:5])
       sobj <- make_seurat_object(sobj_data)
-      print(sobj)
-      print(sobj[[]] %>% head())
+      # print(sobj)
+      # print(sobj[[]] %>% head())
       somaker_dataobject$is_valid_data <- TRUE
     }
   )
@@ -367,31 +392,55 @@ server <- function(input, output, session) {
     )
   })
 
+  output$sobj_out <- renderPrint({
+    reactive_sobj$data
+  })
+
   observeEvent(somaker_dataobject$is_valid_data, {
     if (somaker_dataobject$is_valid_data == TRUE) {
-      print("observeEvent triggered")
-      # print(sobj)
       metadata$data <- sobj[[]]
-      shinyjs::show("data_preview_container")
+      reactive_sobj$data <- sobj
+      # shinyjs::show("data_preview_container")
+      shinyjs::show("start_processing_UI")
     }
   })
 
-
-  output$dataobject <- renderUI({
-    bar <- reactiveValuesToList(somaker_dataobject)
-    result <- tagList(tags$h3("Data object"))
-    for (i in seq_along(bar)) {
-      result <- tagList(
-        result,
-        tags$h6(names(bar)[i]),
-        tags$p(bar[[i]])
+  output$start_processing_UI <- renderUI({
+    div(
+      markdown("Data loaded correctly:"),
+      verbatimTextOutput("sobj_out"),
+      markdown("Press button below to start processing!"),
+      div(
+        style = "display: flex; justify-content: center;",
+        actionButton(
+          "start_processing",
+          label = HTML(
+            bsicons::bs_icon("pc-display-horizontal"),
+            " Start processing"
+          ),
+          class = "btn-success",
+          style = "width: 40%;" # ,
+        )
       )
-    }
-    return(result)
+    )
   })
 
+  shinyjs::onclick("start_processing",
+    expr = {
+      shinyjs::alert("will move to Filtering tab")
+      # sobj_data <- read_data(somaker_dataobject$selected_directory)
+      # # print(sobj_data[1:5, 1:5])
+      # sobj <- make_seurat_object(sobj_data)
+      # # print(sobj)
+      # # print(sobj[[]] %>% head())
+      # somaker_dataobject$is_valid_data <- TRUE
+    }
+  )
 
-  output$nav_now <- renderText(input$nav)
+  ################################################################################
+  # Filtering tab
+  ################################################################################
+
   output$qc_value <- renderText(input$qc_slider_nCount_RNA)
 
   reactive_metadata <- reactive({
@@ -504,6 +553,13 @@ server <- function(input, output, session) {
     )
   })
   # print(session$clientData)
+
+  ################################################################################
+  # Results tab
+  ################################################################################
+
+  # TODO: this tab :-)
+
 }
 
 shinyApp(ui, server)
