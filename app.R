@@ -1,6 +1,7 @@
 library(shiny)
 library(shinyFiles)
 library(shinyjs)
+library(shinycssloaders)
 library(plotly)
 # library(gridlayout)
 library(bslib)
@@ -79,6 +80,7 @@ ui <- tagList(
       position = "right"
     ),
     nav_panel(
+      id = "load_data",
       title = card_title("Load data"),
       value = "load_data",
       card_body(
@@ -100,8 +102,6 @@ ui <- tagList(
             "If the matrices were produced with e.g. a version of Cellranger below v3, `features.tsv` is instead named `genes.tsv`."
           )
         ),
-        # layout_column_wrap(
-        #   width = 1,
         div(
           style = "display: flex; justify-content: center;",
           shinyDirButton(
@@ -113,12 +113,6 @@ ui <- tagList(
             style = "width: 40%;"
           )
         ),
-        # div(
-        #   style = "display: flex; justify-content: center;",
-        # verbatimTextOutput(outputId = "selected_directory"),
-        # actionButton("do", "Click Me")
-        # )
-        # )
         shinyjs::hidden(uiOutput("dir_valid_UI")),
         shinyjs::hidden(uiOutput("dir_invalid_UI")),
         # shinyjs::hidden(
@@ -131,10 +125,10 @@ ui <- tagList(
         #   )
         # ),
         shinyjs::hidden(uiOutput("start_processing_UI"))
-        # uiOutput("dir_validation_UI")
       ),
     ),
     nav_panel(
+      id = "filtering",
       value = "filtering",
       title = card_title("Filtering"),
       card_body(
@@ -250,6 +244,7 @@ ui <- tagList(
       ) # ,
     ),
     nav_panel(
+      id = "results",
       value = "results",
       title = card_title("Results")
     ),
@@ -283,6 +278,9 @@ server <- function(input, output, session) {
 
   metadata <- reactiveValues(data = data.frame())
   reactive_sobj <- reactiveValues(data = pbmc_small)
+
+  nav_hide(id = "nav", target = "filtering")
+  nav_hide(id = "nav", target = "results")
 
   ################################################################################
   # Sidebar
@@ -341,6 +339,17 @@ server <- function(input, output, session) {
     }
   })
 
+  shinyjs::onclick("directory",
+    expr = {
+      shinyjs::hide("dir_valid_UI")
+      shinyjs::hide("dir_invalid_UI")
+      shinyjs::enable("load_into_seurat")
+      shinyjs::hide("start_processing_UI")
+      somaker_dataobject$is_valid_data <- FALSE
+      somaker_dataobject$is_valid_directory <- FALSE
+    }
+  )
+
   output$dir_valid_UI <- renderUI({
     div(
       markdown(str_c(
@@ -354,8 +363,6 @@ server <- function(input, output, session) {
           "load_into_seurat",
           label = HTML(
             bsicons::bs_icon("box-arrow-in-up-right"),
-            # bsicons::bs_icon("cloud-arrow-up"),
-            # bsicons::bs_icon("box-seam-fill"),
             " Load data into Seurat"
           ),
           class = "btn-warning",
@@ -375,22 +382,27 @@ server <- function(input, output, session) {
 
   shinyjs::onclick("load_into_seurat",
     expr = {
-      # shinyjs::alert("loading into Seurat")
-      sobj_data <- read_data(somaker_dataobject$selected_directory)
-      # print(sobj_data[1:5, 1:5])
-      sobj <- make_seurat_object(sobj_data)
-      # print(sobj)
-      # print(sobj[[]] %>% head())
+      shinyjs::disable("load_into_seurat")
+      start_time <- Sys.time()
+      load_time <- system.time(
+        showPageSpinner(
+          type = 6,
+          expr = {
+            sobj_data <- read_data(somaker_dataobject$selected_directory)
+            sobj <- make_seurat_object(sobj_data)
+          },
+          caption = HTML(
+            "Loading data into Seurat..",
+            bsicons::bs_icon("tools")
+          )
+        )
+      )
+      end_time <- Sys.time()
+      print(end_time - start_time)
+      print(load_time["elapsed"])
       somaker_dataobject$is_valid_data <- TRUE
     }
   )
-
-  output$data_preview <- DT::renderDataTable({
-    DT::datatable(
-      head(metadata$data),
-      caption = "Metadata"
-    )
-  })
 
   output$sobj_out <- renderPrint({
     reactive_sobj$data
@@ -400,7 +412,6 @@ server <- function(input, output, session) {
     if (somaker_dataobject$is_valid_data == TRUE) {
       metadata$data <- sobj[[]]
       reactive_sobj$data <- sobj
-      # shinyjs::show("data_preview_container")
       shinyjs::show("start_processing_UI")
     }
   })
@@ -427,13 +438,13 @@ server <- function(input, output, session) {
 
   shinyjs::onclick("start_processing",
     expr = {
-      shinyjs::alert("will move to Filtering tab")
-      # sobj_data <- read_data(somaker_dataobject$selected_directory)
-      # # print(sobj_data[1:5, 1:5])
-      # sobj <- make_seurat_object(sobj_data)
-      # # print(sobj)
-      # # print(sobj[[]] %>% head())
-      # somaker_dataobject$is_valid_data <- TRUE
+      # shinyjs::alert("will move to Filtering tab")
+      # hideTab(inputId = "nav", target = "load_data")
+      # showTab(inputId = "nav", target = "filtering")
+      # updateTabsetPanel(inputId = "nav", selected = "filtering")
+      nav_hide(id = "nav", target = "load_data")
+      nav_show(id = "nav", target = "filtering")
+      nav_select(id = "nav", selected = "filtering")
     }
   )
 
@@ -477,7 +488,6 @@ server <- function(input, output, session) {
       " cells."
     )
   })
-
 
   output$violin_plot <- renderPlotly({
     pbmc_small[[]] %>%
