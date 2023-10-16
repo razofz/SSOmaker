@@ -127,6 +127,9 @@ ui <- tagList(
         shinyjs::hidden(uiOutput("start_processing_UI"))
       ),
     ),
+    ##############################################################################
+    # Filtering tab
+    ##############################################################################
     nav_panel(
       id = "filtering",
       value = "filtering",
@@ -143,6 +146,11 @@ ui <- tagList(
         #   )
         # ),
         # verbatimTextOutput(outputId = "selected_directory_filtering"),
+        # histogramUI("hist1"),
+        # qc_plot_ui("qc_test"),
+        # test_ui("test"),
+        # verbatimTextOutput("qc"),
+        # uiOutput("qc"),
         markdown("---"),
         # value_box(
         #   # title = "Selected directory",
@@ -177,53 +185,48 @@ ui <- tagList(
             "### Violin plots of basic characteristics"
           )
         ),
-        layout_column_wrap(
-          width = "600px",
-          div(
-            style = "display: flex; justify-content: center;",
-            div(
-              div(
-                style = "display: flex; justify-content: center;",
-                tooltip(
-                  span(
-                    helpText("Need help? "),
-                    bs_icon("info-circle")
-                  ),
-                  str_c(
-                    "Hover over the plot to see extra statistics about the metadata column. ",
-                    "You can also drag to zoom in on a specific area of the plot."
-                  )
-                )
-              ),
-              plotlyOutput(outputId = "violin_plot"),
-              div(
-                style = "display: flex; justify-content: center;",
-                sliderInput(
-                  inputId = str_c("qc_slider_", "nCount_RNA"),
-                  label = "nCount_RNA",
-                  min = range(pbmc_small$nCount_RNA, na.rm = TRUE)[1],
-                  max = range(pbmc_small$nCount_RNA, na.rm = TRUE)[2],
-                  value = range(pbmc_small$nCount_RNA, na.rm = TRUE),
-                  width = "80%"
-                ),
-              ),
-              div(
-                style = "display: flex; justify-content: center;",
-                span(
-                  helpText("Adjust the sliders to set the filtering cutoffs."),
-                  tooltip(
-                    bs_icon("info-circle"),
-                    "Drag the sliders to set the cutoffs for this metadata column. ",
-                    "Notice the change in the black lines in the plot above, which correspond to the selected cutoffs. ",
-                    "Also note that the number of cells displayed up top is updated according to how you change the sliders.",
-                    placement = "right"
-                  )
-                )
-              ),
-              style = " width: 60%; max-width: 600px;",
-            ),
-          )
-        ),
+        # qc_plot_ui("qc_plot"),
+        # qc_slider_ui("qc_sliderr"),
+        # verbatimTextOutput("tmp"),
+        qc_module_UI("qc_nCount_RNA"),
+        # qc_slider_ui("qc_test"),
+        # layout_column_wrap(
+        #   width = "600px",
+        #   div(
+        #     style = "display: flex; justify-content: center;",
+        #     div(
+        #       div(
+        #         style = "display: flex; justify-content: center;",
+        #         tooltip(
+        #           span(
+        #             helpText("Need help? "),
+        #             bs_icon("info-circle")
+        #           ),
+        #           str_c(
+        #             "Hover over the plot to see extra statistics about the metadata column. ",
+        #             "You can also drag to zoom in on a specific area of the plot."
+        #           )
+        #         )
+        #       ),
+        #       plotlyOutput(outputId = "violin_plot"),
+        #       uiOutput("qc_slider"),
+        #       div(
+        #         style = "display: flex; justify-content: center;",
+        #         span(
+        #           helpText("Adjust the sliders to set the filtering cutoffs."),
+        #           tooltip(
+        #             bs_icon("info-circle"),
+        #             "Drag the sliders to set the cutoffs for this metadata column. ",
+        #             "Notice the change in the black lines in the plot above, which correspond to the selected cutoffs. ",
+        #             "Also note that the number of cells displayed up top is updated according to how you change the sliders.",
+        #             placement = "right"
+        #           )
+        #         )
+        #       ),
+        #       style = " width: 60%; max-width: 600px;",
+        #     ),
+        #   )
+        # ),
         textOutput(outputId = "qc_value"),
         # splitLayout(
         #   make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
@@ -276,11 +279,16 @@ server <- function(input, output, session) {
     percent_mito_high = 20
   )
 
-  metadata <- reactiveValues(data = data.frame())
+  # reactive_metadata <- reactiveValues(data = data.frame())
+  reactive_metadata <- reactiveValues(data = pbmc_small[[]])
   reactive_sobj <- reactiveValues(data = pbmc_small)
 
   nav_hide(id = "nav", target = "filtering")
   nav_hide(id = "nav", target = "results")
+
+  # filtering debugging
+  nav_show(id = "nav", target = "filtering")
+  nav_select(id = "nav", selected = "filtering")
 
   ################################################################################
   # Sidebar
@@ -409,11 +417,12 @@ server <- function(input, output, session) {
   })
 
   observeEvent(somaker_dataobject$is_valid_data, {
-    if (somaker_dataobject$is_valid_data == TRUE) {
-      metadata$data <- sobj[[]]
-      reactive_sobj$data <- sobj
-      shinyjs::show("start_processing_UI")
-    }
+    req(somaker_dataobject$is_valid_data)
+    # if (somaker_dataobject$is_valid_data == TRUE) {
+    reactive_metadata$data <- sobj[[]]
+    reactive_sobj$data <- sobj
+    shinyjs::show("start_processing_UI")
+    # }
   })
 
   output$start_processing_UI <- renderUI({
@@ -452,66 +461,119 @@ server <- function(input, output, session) {
   # Filtering tab
   ################################################################################
 
-  output$qc_value <- renderText(input$qc_slider_nCount_RNA)
+  # histogramServer("hist1")
+  # qc <- qc_plot_server("qc_test", metadata = reactive_metadata, col = "nCount_RNA")
+  # qc <- qc_plot_server("qc_test", metadata = reactive_metadata$data, col = "nCount_RNA")
+  # reactive({
+  #   qc <- qc_plot_server("qc_test", metadata = reactive_metadata$data, col = "nCount_RNA")
+  #   output$qc <- renderPrint(qc)
+  # })
 
-  reactive_metadata <- reactive({
-    pbmc_small[[]]
-  })
+  # output$qc <- renderUI({
+  #   qc_slider_server("qc", "nCount_RNA", reactive_metadata$data)
+  # })
+
+  # output$qc_value <- renderText(input$qc_slider_nCount_RNA)
+  # output$qc_value <- renderText(input$qc_test_qc_slider)
+
+  # foo <- reactiveVal("oooh")
+  # output$test <- test_server("test", foo = reactive_metadata$data)
+
+  # slider_input_valss <- qc_slider_server(
+  #   "qc_sliderr",
+  #   # "qc_test",
+  #   col = "nCount_RNA",
+  #   metadata = reactive_metadata # $data
+  # )
+  # output$tmp <- renderPrint({input[["qc_sliderr-output"]]})
+  # output$tmp <- renderPrint({slider_input_valss()})
+  # observe(
+  #   # print(slider_input_valss())#,
+  #   print(head(reactive_metadata$data))
+  #   # input$qc_sliderr
+  #   # input[["qc_sliderr-output"]]
+  # )
+  # observe(
+  #   print("aah")
+  # )
+  # qc_plot_server(
+  #   "qc_plot",
+  #   # "qc_test",
+  #   col = "nCount_RNA",
+  #   metadata = reactive_metadata, # $data
+  #   ranges = slider_input_vals
+  # )
+  slider_input_vals <- qc_module_server(
+    "qc_nCount_RNA",
+    col = "nCount_RNA",
+    metadata = reactive_metadata # $data
+  )
+  observe(
+    print(slider_input_vals())
+  )
+  # output$tmp <- renderPrint({slider_input_vals})
+
 
   output$original_n_cells <- renderText({
-    nrow(reactive_metadata()[, ])
+    nrow(reactive_metadata$data[, ])
   })
   output$filtered_n_cells <- renderText({
-    nrow(reactive_metadata()[
-      pbmc_small[[]]$nCount_RNA >= input$qc_slider_nCount_RNA[1] &
-        pbmc_small[[]]$nCount_RNA <= input$qc_slider_nCount_RNA[2],
+    nrow(reactive_metadata$data[
+      reactive_metadata$data$nCount_RNA >= slider_input_vals()[1] &
+        reactive_metadata$data$nCount_RNA <= slider_input_vals()[2],
+      # reactive_metadata$data$nCount_RNA >= input$qc_slider_nCount_RNA[1] &
+      #   reactive_metadata$data$nCount_RNA <= input$qc_slider_nCount_RNA[2],
     ])
   })
 
-  # output$original_n_cells_side <- renderText({
-  #   nrow(reactive_metadata()[, ])
-  # })
-  # output$filtered_n_cells_side <- renderText({
-  #   nrow(reactive_metadata()[
-  #     pbmc_small[[]]$nCount_RNA >= input$qc_slider_nCount_RNA[1] &
-  #       pbmc_small[[]]$nCount_RNA <= input$qc_slider_nCount_RNA[2],
-  #   ])
+  # output$filtered_dimensions <- renderText({
+  #   str_c(
+  #     "Number of cells before filtering: ",
+  #     nrow(reactive_metadata$data[reactive_metadata$data$nCount_RNA >= input$qc_slider_nCount_RNA[1], ]),
+  #     " cells. ",
+  #     "Cells left after filtering: ",
+  #     nrow(reactive_metadata$data[reactive_metadata$data$nCount_RNA <= input$qc_slider_nCount_RNA[2], ]),
+  #     " cells."
+  #   )
   # })
 
-  output$filtered_dimensions <- renderText({
-    str_c(
-      "Number of cells before filtering: ",
-      nrow(reactive_metadata()[pbmc_small[[]]$nCount_RNA >= input$qc_slider_nCount_RNA[1], ]),
-      " cells. ",
-      "Cells left after filtering: ",
-      nrow(reactive_metadata()[pbmc_small[[]]$nCount_RNA <= input$qc_slider_nCount_RNA[2], ]),
-      " cells."
-    )
-  })
+  # output$qc_slider <- renderUI({
+  #   div(
+  #     style = "display: flex; justify-content: center;",
+  #     sliderInput(
+  #       inputId = str_c("qc_slider_", "nCount_RNA"),
+  #       label = "nCount_RNA",
+  #       min = range(reactive_metadata$data$nCount_RNA, na.rm = TRUE)[1],
+  #       max = range(reactive_metadata$data$nCount_RNA, na.rm = TRUE)[2],
+  #       value = range(reactive_metadata$data$nCount_RNA, na.rm = TRUE),
+  #       width = "80%"
+  #     )
+  #   )
+  # })
 
-  output$violin_plot <- renderPlotly({
-    pbmc_small[[]] %>%
-      plot_ly(
-        y = as.formula(str_c(" ~ ", "nCount_RNA")),
-        type = "violin",
-        box = list(visible = T),
-        meanline = list(visible = T),
-        name = "nCount_RNA",
-        x0 = "nCount_RNA"
-      ) %>%
-      layout(
-        yaxis = list(zeroline = F),
-        shapes = list(
-          # hline(min_cutoff),
-          hline(input$qc_slider_nCount_RNA[1]),
-          hline(input$qc_slider_nCount_RNA[2])
-          # hline(max_cutoff)
-        )
-      ) # %>%
-    # config(
-    #   selectmode = "lasso",
-    # )
-  })
+  # output$violin_plot <- renderPlotly({
+  #   reactive_metadata$data %>%
+  #     plot_ly(
+  #       y = as.formula(str_c(" ~ ", "nCount_RNA")),
+  #       type = "violin",
+  #       box = list(visible = T),
+  #       meanline = list(visible = T),
+  #       name = "nCount_RNA",
+  #       x0 = "nCount_RNA"
+  #     ) %>%
+  #     layout(
+  #       yaxis = list(zeroline = F),
+  #       shapes = list(
+  #         # hline(min_cutoff),
+  #         hline(input$qc_slider_nCount_RNA[1]),
+  #         hline(input$qc_slider_nCount_RNA[2])
+  #         # hline(max_cutoff)
+  #       )
+  #     ) # %>%
+  #   # config(
+  #   #   selectmode = "lasso",
+  #   # )
+  # })
 
   # observeEvent(input$show, {
   #     showNotification(
@@ -550,10 +612,10 @@ server <- function(input, output, session) {
   #   ))
   # })
   # input$qc_slider_nCount_RNA
-  output$colnames_output <- renderText(colnames(pbmc_small[[]]))
+  # output$colnames_output <- renderText(colnames(pbmc_small[[]]))
   output$metadata <- DT::renderDataTable({
     DT::datatable(
-      pbmc_small[[]],
+      reactive_metadata$data,
       caption = "Metadata",
       options = list(
         pageLength = 5
@@ -569,7 +631,6 @@ server <- function(input, output, session) {
   ################################################################################
 
   # TODO: this tab :-)
-
 }
 
 shinyApp(ui, server)
