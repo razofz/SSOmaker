@@ -15,7 +15,7 @@ library(htmltools)
 
 source("backend.R")
 
-options(shiny.maxRequestSize = 900 * 1024^2) # 300 MB limit
+options(shiny.maxRequestSize = 900 * 1024^2) # 900 MB limit
 
 ui <- tagList(
   useShinyjs(),
@@ -50,19 +50,7 @@ ui <- tagList(
             "2. **Filter the data (QC)**",
             "3. Results"
           )
-        ) # ,
-        # value_box(
-        #   title = "Original number of cells",
-        #   value = textOutput(outputId = "original_n_cells_side"),
-        #   showcase = bsicons::bs_icon("clipboard-data"),
-        #   theme_color = "success"
-        # ),
-        # value_box(
-        #   title = "Number of cells left after filtering",
-        #   value = textOutput(outputId = "filtered_n_cells_side"),
-        #   showcase = bsicons::bs_icon("receipt-cutoff"),
-        #   theme_color = "warning"
-        # )
+        )
       ),
       conditionalPanel(
         "input.nav === 'results'",
@@ -115,15 +103,6 @@ ui <- tagList(
         ),
         shinyjs::hidden(uiOutput("dir_valid_UI")),
         shinyjs::hidden(uiOutput("dir_invalid_UI")),
-        # shinyjs::hidden(
-        #   div(
-        #     id = "data_preview_container",
-        #     # shinycssloaders::withSpinner(
-        #     #   DT::dataTableOutput(outputId = "data_preview")
-        #     # ),
-        #     # verbatimTextOutput("sobj_out")
-        #   )
-        # ),
         shinyjs::hidden(uiOutput("start_processing_UI"))
       ),
     ),
@@ -140,26 +119,7 @@ ui <- tagList(
             "# Filtering (QC)"
           )
         ),
-        # markdown(
-        #   mds = c(
-        #     "**Selected directory:**"
-        #   )
-        # ),
-        # verbatimTextOutput(outputId = "selected_directory_filtering"),
-        # histogramUI("hist1"),
-        # qc_plot_ui("qc_test"),
-        # test_ui("test"),
-        # verbatimTextOutput("qc"),
-        # uiOutput("qc"),
         markdown("---"),
-        # value_box(
-        #   # title = "Selected directory",
-        #   value = "",
-        #   title = textOutput(outputId = "selected_directory"),
-        #   # value = textOutput(outputId = "selected_directory"),
-        #   showcase = bsicons::bs_icon("file-earmark-spreadsheet"), # , size = NULL),
-        #   theme_color = "success"
-        # ),
         layout_column_wrap(
           width = 2,
           value_box(
@@ -185,53 +145,8 @@ ui <- tagList(
             "### Violin plots of basic characteristics"
           )
         ),
-        # qc_plot_ui("qc_plot"),
-        # qc_slider_ui("qc_sliderr"),
-        # verbatimTextOutput("tmp"),
         qc_module_UI("qc_nCount_RNA"),
-        # qc_slider_ui("qc_test"),
-        # layout_column_wrap(
-        #   width = "600px",
-        #   div(
-        #     style = "display: flex; justify-content: center;",
-        #     div(
-        #       div(
-        #         style = "display: flex; justify-content: center;",
-        #         tooltip(
-        #           span(
-        #             helpText("Need help? "),
-        #             bs_icon("info-circle")
-        #           ),
-        #           str_c(
-        #             "Hover over the plot to see extra statistics about the metadata column. ",
-        #             "You can also drag to zoom in on a specific area of the plot."
-        #           )
-        #         )
-        #       ),
-        #       plotlyOutput(outputId = "violin_plot"),
-        #       uiOutput("qc_slider"),
-        #       div(
-        #         style = "display: flex; justify-content: center;",
-        #         span(
-        #           helpText("Adjust the sliders to set the filtering cutoffs."),
-        #           tooltip(
-        #             bs_icon("info-circle"),
-        #             "Drag the sliders to set the cutoffs for this metadata column. ",
-        #             "Notice the change in the black lines in the plot above, which correspond to the selected cutoffs. ",
-        #             "Also note that the number of cells displayed up top is updated according to how you change the sliders.",
-        #             placement = "right"
-        #           )
-        #         )
-        #       ),
-        #       style = " width: 60%; max-width: 600px;",
-        #     ),
-        #   )
-        # ),
         textOutput(outputId = "qc_value"),
-        # splitLayout(
-        #   make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA"),
-        #   make_qc_slider(x = pbmc_small$nFeature_RNA, col = "nFeature_RNA")
-        # ),
         markdown(
           mds = c(
             "### Choose filtering parameters"
@@ -461,48 +376,6 @@ server <- function(input, output, session) {
   # Filtering tab
   ################################################################################
 
-  # histogramServer("hist1")
-  # qc <- qc_plot_server("qc_test", metadata = reactive_metadata, col = "nCount_RNA")
-  # qc <- qc_plot_server("qc_test", metadata = reactive_metadata$data, col = "nCount_RNA")
-  # reactive({
-  #   qc <- qc_plot_server("qc_test", metadata = reactive_metadata$data, col = "nCount_RNA")
-  #   output$qc <- renderPrint(qc)
-  # })
-
-  # output$qc <- renderUI({
-  #   qc_slider_server("qc", "nCount_RNA", reactive_metadata$data)
-  # })
-
-  # output$qc_value <- renderText(input$qc_slider_nCount_RNA)
-  # output$qc_value <- renderText(input$qc_test_qc_slider)
-
-  # foo <- reactiveVal("oooh")
-  # output$test <- test_server("test", foo = reactive_metadata$data)
-
-  # slider_input_valss <- qc_slider_server(
-  #   "qc_sliderr",
-  #   # "qc_test",
-  #   col = "nCount_RNA",
-  #   metadata = reactive_metadata # $data
-  # )
-  # output$tmp <- renderPrint({input[["qc_sliderr-output"]]})
-  # output$tmp <- renderPrint({slider_input_valss()})
-  # observe(
-  #   # print(slider_input_valss())#,
-  #   print(head(reactive_metadata$data))
-  #   # input$qc_sliderr
-  #   # input[["qc_sliderr-output"]]
-  # )
-  # observe(
-  #   print("aah")
-  # )
-  # qc_plot_server(
-  #   "qc_plot",
-  #   # "qc_test",
-  #   col = "nCount_RNA",
-  #   metadata = reactive_metadata, # $data
-  #   ranges = slider_input_vals
-  # )
   slider_input_vals <- qc_module_server(
     "qc_nCount_RNA",
     col = "nCount_RNA",
@@ -511,8 +384,6 @@ server <- function(input, output, session) {
   observe(
     print(slider_input_vals())
   )
-  # output$tmp <- renderPrint({slider_input_vals})
-
 
   output$original_n_cells <- renderText({
     nrow(reactive_metadata$data[, ])
@@ -521,59 +392,9 @@ server <- function(input, output, session) {
     nrow(reactive_metadata$data[
       reactive_metadata$data$nCount_RNA >= slider_input_vals()[1] &
         reactive_metadata$data$nCount_RNA <= slider_input_vals()[2],
-      # reactive_metadata$data$nCount_RNA >= input$qc_slider_nCount_RNA[1] &
-      #   reactive_metadata$data$nCount_RNA <= input$qc_slider_nCount_RNA[2],
     ])
   })
 
-  # output$filtered_dimensions <- renderText({
-  #   str_c(
-  #     "Number of cells before filtering: ",
-  #     nrow(reactive_metadata$data[reactive_metadata$data$nCount_RNA >= input$qc_slider_nCount_RNA[1], ]),
-  #     " cells. ",
-  #     "Cells left after filtering: ",
-  #     nrow(reactive_metadata$data[reactive_metadata$data$nCount_RNA <= input$qc_slider_nCount_RNA[2], ]),
-  #     " cells."
-  #   )
-  # })
-
-  # output$qc_slider <- renderUI({
-  #   div(
-  #     style = "display: flex; justify-content: center;",
-  #     sliderInput(
-  #       inputId = str_c("qc_slider_", "nCount_RNA"),
-  #       label = "nCount_RNA",
-  #       min = range(reactive_metadata$data$nCount_RNA, na.rm = TRUE)[1],
-  #       max = range(reactive_metadata$data$nCount_RNA, na.rm = TRUE)[2],
-  #       value = range(reactive_metadata$data$nCount_RNA, na.rm = TRUE),
-  #       width = "80%"
-  #     )
-  #   )
-  # })
-
-  # output$violin_plot <- renderPlotly({
-  #   reactive_metadata$data %>%
-  #     plot_ly(
-  #       y = as.formula(str_c(" ~ ", "nCount_RNA")),
-  #       type = "violin",
-  #       box = list(visible = T),
-  #       meanline = list(visible = T),
-  #       name = "nCount_RNA",
-  #       x0 = "nCount_RNA"
-  #     ) %>%
-  #     layout(
-  #       yaxis = list(zeroline = F),
-  #       shapes = list(
-  #         # hline(min_cutoff),
-  #         hline(input$qc_slider_nCount_RNA[1]),
-  #         hline(input$qc_slider_nCount_RNA[2])
-  #         # hline(max_cutoff)
-  #       )
-  #     ) # %>%
-  #   # config(
-  #   #   selectmode = "lasso",
-  #   # )
-  # })
 
   # observeEvent(input$show, {
   #     showNotification(
@@ -586,33 +407,6 @@ server <- function(input, output, session) {
   #   })
 
 
-  # fig <- make_qc_plots(
-  #   sobj = pbmc_small,
-  #   col = "nCount_RNA",
-  #   min_cutoff = input$qc_slider_nCount_RNA[1],
-  #   max_cutoff = input$qc_slider_nCount_RNA[2],
-  # )
-  # fig <- callModule(make_qc_plots, "backend")
-  # output$violin_plot <- renderPlotly(
-  #   fig
-  # make_qc_plots(
-  #   sobj = pbmc_small,
-  #   col = "nCount_RNA",
-  #   input = input,
-  #   output = output,
-  #   session = session,
-  # )
-  # )
-  # output$violin_plot <- renderPlotly({
-  #   reactive(make_qc_plots(
-  #     sobj = pbmc_small,
-  #     col = "nCount_RNA",
-  #     min_cutoff = input$qc_slider_nCount_RNA[1],
-  #     max_cutoff = input$qc_slider_nCount_RNA[2],
-  #   ))
-  # })
-  # input$qc_slider_nCount_RNA
-  # output$colnames_output <- renderText(colnames(pbmc_small[[]]))
   output$metadata <- DT::renderDataTable({
     DT::datatable(
       reactive_metadata$data,

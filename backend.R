@@ -6,7 +6,6 @@ library(shinyFiles)
 library(shinyjs)
 library(shinycssloaders)
 library(plotly)
-# library(gridlayout)
 library(bslib)
 library(bsicons)
 library(Seurat)
@@ -88,46 +87,6 @@ make_seurat_object <- function(
   return(sobj)
 }
 
-# make_qc_slider <- function(x, col) {
-#   if (is.numeric(x)) {
-#     col_range <- range(x, na.rm = TRUE)
-#     sliderInput(
-#       inputId = str_c("qc_slider_", col),
-#       label = col,
-#       min = col_range[1],
-#       max = col_range[2],
-#       value = col_range,
-#       width = "75%"
-#     )
-#   } else if (is.factor(x)) {
-#     levs <- levels(x)
-#     selectInput(col, col, choices = levs, selected = levs, multiple = TRUE)
-#   } else {
-#     # Not supported
-#     NULL
-#   }
-# }
-
-make_qc_slider <- function(x, id, col) {
-  if (is.numeric(x)) {
-    col_range <- range(x, na.rm = TRUE)
-    sliderInput(
-      inputId = id,
-      # label = col,
-      min = col_range[1],
-      max = col_range[2],
-      value = col_range,
-      width = "75%"
-    )
-    # } else if (is.factor(x)) {
-    # levs <- levels(x)
-    # selectInput(col, col, choices = levs, selected = levs, multiple = TRUE)
-  } else {
-    # Not supported
-    NULL
-  }
-}
-
 qc_slider_ui <- function(id) {
   div(
     style = "display: flex; justify-content: center;",
@@ -158,21 +117,6 @@ qc_slider_server <- function(id, col, metadata) {
         value = col_range
       )
     })
-    # output$output <- renderUI({
-    #   col_range <- range(metadata$data[[col]], na.rm = TRUE)
-    #   div(
-    #     style = "display: flex; justify-content: center;",
-    #     sliderInput(
-    #       # inputId = NS(id, "slider"),
-    #       inputId = "slider",
-    #       label = col,
-    #       min = col_range[1],
-    #       max = col_range[2],
-    #       value = col_range,
-    #       width = "75%"
-    #     )
-    #   )
-    # })
 
     return(
       slider = shiny::reactive(input$slider)
@@ -269,17 +213,9 @@ qc_module_server <- function(id, col, metadata) {
       metadata = metadata,
       ranges = slider_input_vals
     )
-    # print(input)
-    # print(session)
-    # print(reactive({slider_input_vals()}))
-    # output$foo <- renderText("aaah")
-    # output$foo <- renderText(input$qc_slide)
     output$foo <- renderText({slider_input_vals()})
-    # output$foo <- renderText({input[["qc_slide-slider"]]})
 
     return(slider_input_vals)
-    # return(reactive({input[["qc_slide-slider"]]}))
-    # return(input[["qc_slide-slider"]])
   })
 }
 
@@ -381,52 +317,6 @@ make_qc_plots <- function(
   return(fig)
 }
 
-# qc_plot_ui <- function(id, label = "QC") {
-# qc_plot_ui <- function(id) {
-#   uiOutput(NS(id, "output"))
-#   # uiOutput(NS(id, str_c("qc_slider", col)))
-#   # make_qc_slider(x = pbmc_small$nCount_RNA, col = "nCount_RNA")
-# }
-# qc_plot_server <- function(id,
-#     col,
-#     metadata
-#   ) {
-#   stopifnot(is.reactive(metadata))
-#   stopifnot(!is.reactive(col))
-
-#   moduleServer(id, function(input, output, session, col = col) {
-#       col_range <- range(metadata[[col]], na.rm = TRUE)
-#       print(col)
-#       NS(id, "output") <- renderUI({
-#         sliderInput(
-#           # inputId = str_c("qc_slider_", col),
-#           inputId = NS(id, str_c("qc_slider_", col)),
-#           label = col,
-#           # min = range(metadata[[col]], na.rm = TRUE)[1],
-#           # max = range(metadata[[col]], na.rm = TRUE)[2],
-#           # value = range(metadata[[col]], na.rm = TRUE),
-#           min = col_range[1],
-#           max = col_range[2],
-#           value = col_range,
-#           width = "75%"
-#         )
-#       })
-#       observeEvent(metadata(), {
-#         updateSliderInput(
-#           session,
-#           str_c("qc_slider_", col),
-#           min = col_range[1],
-#           max = col_range[2],
-#           value = col_range,
-#         )
-#       })
-
-#       reactive(col_range)
-#     }
-#   )
-# }
-
-
 new_somaker_dataobject <- function(x = data.frame()) {
   stopifnot(is.data.frame(x))
   foo <- list(
@@ -448,19 +338,3 @@ new_somaker_dataobject <- function(x = data.frame()) {
     structure(foo, class = "somaker_dataobject")
   )
 }
-
-# histogramUI <- function(id) {
-#   tagList(
-#     # selectInput(NS(id, "var"), "Variable", choices = names(mtcars)),
-#     numericInput(NS(id, "bins"), "bins", value = 10, min = 1)
-#     # plotOutput(NS(id, "hist"))
-#   )
-# }
-# histogramServer <- function(id) {
-#   moduleServer(id, function(input, output, session) {
-#     data <- reactive(mtcars[[input$var]])
-#     # output$hist <- renderPlot({
-#     #   hist(data(), breaks = input$bins, main = input$var)
-#     # }, res = 96)
-#   })
-# }
