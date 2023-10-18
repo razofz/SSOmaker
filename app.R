@@ -144,9 +144,7 @@ ui <- tagList(
             "### Violin plots of basic characteristics"
           )
         ),
-        # qc_module_UI("qc_nCount_RNA"),
         uiOutput(outputId = "qc_UI"),
-        # textOutput(outputId = "qc_value"),
         markdown(
           mds = c(
             "### Choose filtering parameters"
@@ -158,12 +156,7 @@ ui <- tagList(
             "Showing the metadata for the dataset, in order to help choose which columns to filter. Some suggestions have been selected in the checkboxes below."
           )
         ),
-        DT::dataTableOutput("metadata"),
-        actionButton(
-          inputId = "phony_button",
-          label = "phony_button"#,
-          # style = "visibility: hidden;"
-        )
+        DT::dataTableOutput("metadata")
       ) # ,
     ),
     nav_panel(
@@ -425,8 +418,6 @@ server <- function(input, output, session) {
         })
       }
       # print(slider_input_vals)
-      # slider_input_vals <- reactiveValues()
-      shinyjs::click("phony_button")
     }
   )
 
