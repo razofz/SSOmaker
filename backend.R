@@ -111,18 +111,18 @@ qc_slider_server <- function(id, col, metadata, start_values) {
         isolate(update_it(update_it() + 1))
       }
       if (update_it() < 2) {
-        print(str_c("update_it(): ", update_it()))
-        invalidateLater(100, session)
+        # print(str_c("update_it(): ", update_it()))
+        invalidateLater(300, session)
       }
-        col_range <- range(isolate(metadata$data[[col]]), na.rm = TRUE)
-        updateSliderInput(
-          session,
-          inputId = "slider",
-          label = col,
-          min = col_range[1],
-          max = col_range[2],
-          value = start_values
-        )
+      col_range <- range(isolate(metadata$data[[col]]), na.rm = TRUE)
+      updateSliderInput(
+        session,
+        inputId = "slider",
+        label = col,
+        min = col_range[1],
+        max = col_range[2],
+        value = start_values
+      )
     })
     shinyjs::logjs(start_values)
 
@@ -190,7 +190,7 @@ qc_module_UI <- function(id) {
           )
         ),
         qc_plot_ui(NS(id, "qc_plot")),
-        verbatimTextOutput(NS(id, "foo")),
+        # verbatimTextOutput(NS(id, "foo")),
         div(
           style = "display: flex; justify-content: center;",
           qc_slider_ui(NS(id, "qc_slide"))

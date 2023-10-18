@@ -145,6 +145,11 @@ ui <- tagList(
           )
         ),
         uiOutput(outputId = "qc_UI"),
+        # layout_column_wrap(
+        #   width = 4,
+          uiOutput(outputId = "filtering_thresholds"),
+        # ),
+        uiOutput(outputId = "confirm_filtering_UI"),
         markdown(
           mds = c(
             "### Choose filtering parameters"
@@ -425,22 +430,6 @@ server <- function(input, output, session) {
   # Filtering tab
   ################################################################################
 
-
-  # slider_input_vals[[column]] <- qc_module_server(
-  #   str_c("qc_", column),
-  #   col = column,
-  #   metadata = reactive_metadata
-  # )
-
-  # slider_input_vals[["nCount_RNA"]] <- qc_module_server(
-  #   "qc_nCount_RNA",
-  #   col = "nCount_RNA",
-  #   metadata = reactive_metadata
-  # )
-  # observe(
-  #   print(slider_input_vals[["nCount_RNA"]]())
-  # )
-
   output$original_n_cells <- renderText({
     nrow(reactive_metadata$data[, ])
   })
@@ -448,12 +437,20 @@ server <- function(input, output, session) {
     if (somaker_dataobject$is_valid_data) {
       cell_filters <- list()
       for (column in somaker_dataobject$columns_to_filter) {
-        print(column)
-        reactive_metadata$data[[column]] %>% head %>% print
-        slider_input_vals[[column]]()[1] %>% print
+        # print(column)
+        # reactive_metadata$data[[column]] %>% head %>% print
+        # slider_input_vals[[column]]()[1] %>% print
+        ## TODO: more reasonable check for type of column.
+        ## Should probably have a better data model for filterable columns.
+        ## E.g. "Is it supposed to only have an upper cutoff? Or a lower? Or both?"
+        if (length(slider_input_vals[[column]]()) > 1) {
+          cell_filters <- c(
+            cell_filters,
+            list(reactive_metadata$data[[column]] >= slider_input_vals[[column]]()[1])
+          )
+        }
         cell_filters <- c(
           cell_filters,
-          list(reactive_metadata$data[[column]] >= slider_input_vals[[column]]()[1]),
           list(reactive_metadata$data[[column]] <= slider_input_vals[[column]]()[2])
         )
       }
@@ -463,23 +460,133 @@ server <- function(input, output, session) {
         master_filter,
       ])
     }
-    # nrow(reactive_metadata$data[
-    #   reactive_metadata$data$nCount_RNA >= slider_input_vals[["nCount_RNA"]]()[1] &
-    #     reactive_metadata$data$nCount_RNA <= slider_input_vals[["nCount_RNA"]]()[2],
-    # ])
   })
 
+  output$confirm_filtering_UI <- renderUI({
+    div(
+      # markdown("Data loaded correctly:"),
+      # verbatimTextOutput("sobj_out"),
+      markdown("Press button below to start processing!"),
+      # verbatimTextOutput("filtering_thresholds"),
+      div(
+        style = "display: flex; justify-content: center;",
+        actionButton(
+          "start_processing",
+          label = HTML(
+            bsicons::bs_icon("bar-chart-fill"),
+            "<strong>",
+            " Confirm filtering thresholds",
+            "</strong>"
+          ),
+          class = "btn-success",
+          style = "width: 40%;" # ,
+        )
+      )
+    )
+  })
 
-  # observeEvent(input$show, {
-  #     showNotification(
-  #       ui = markdown(c(
-  #         "## This is a notification. ",
-  #         "_Take care._"
-  #       )),
-  #       type = "warning"
-  #     )
-  #   })
+  output$filtering_thresholds <- renderUI({
+    if (somaker_dataobject$is_valid_data) {
+      cell_filters <- list()
+      for (column in somaker_dataobject$columns_to_filter) {
+        if (length(slider_input_vals[[column]]()) > 1) {
+          cell_filters <- c(
+            cell_filters,
+            list(reactive_metadata$data[[column]] >= slider_input_vals[[column]]()[1])
+          )
+        }
+        cell_filters <- c(
+          cell_filters,
+          list(reactive_metadata$data[[column]] <= slider_input_vals[[column]]()[2])
+        )
+      }
+      # print(cell_filters)
+      master_filter <- Reduce(`&`, cell_filters)
 
+      # return( # tagList(
+      # layout_column_wrap(
+      #   width = 4,
+
+      # to_return <- list()
+      to_return <- tagList()
+      j <- 1
+      for (i in seq_len(length(somaker_dataobject$columns_to_filter))) {
+        if (length( slider_input_vals[[
+              somaker_dataobject$columns_to_filter[[i]]
+            ]]()
+            ) > 1) {
+          to_return[[j]] <- value_box(
+            # title = somaker_dataobject$columns_to_filter[[i]],
+            title = markdown(str_c(
+              "**", somaker_dataobject$columns_to_filter[[i]], "_low", "**"
+            )),
+            value = slider_input_vals[[somaker_dataobject$columns_to_filter[[i]]]]()[1],
+            showcase = bsicons::bs_icon("filter-left"),
+            theme_color = "secondary"
+          )
+          j <- j + 1
+          }
+        to_return[[j]] <- value_box(
+          # title = somaker_dataobject$columns_to_filter[[i]],
+          title = markdown(str_c(
+            "**", somaker_dataobject$columns_to_filter[[i]], "_high", "**"
+          )),
+          value = slider_input_vals[[somaker_dataobject$columns_to_filter[[i]]]]()[2],
+          showcase = bsicons::bs_icon("filter-right"),
+          theme_color = "primary"
+        )
+        j <- j + 1
+      }
+      # to_return[[j]] <- value_box(
+      #   title = "Original number of cells",
+      #   value = nrow(reactive_metadata$data),
+      #   # value = textOutput(outputId = "original_n_cells"),
+      #   showcase = bsicons::bs_icon("clipboard-data"),
+      #   theme_color = "success"
+      # )
+      # j <- j + 1
+      # to_return[[j]] <- value_box(
+      #   title = "Number of cells left after filtering",
+      #   value = nrow(reactive_metadata$data[master_filter, ]),
+      #   # value = textOutput(outputId = "filtered_n_cells"),
+      #   showcase = bsicons::bs_icon("receipt-cutoff"),
+      #   theme_color = "warning"
+      # )
+      
+      return(
+        tagList(
+          layout_column_wrap(
+            width = "220px",
+            # width = .25,
+            !!!to_return,
+            heights_equal = "all",
+            # fixed_width = TRUE,
+            fill = TRUE
+          ),
+          layout_column_wrap(
+            width = 2,
+            value_box(
+              title = "Original number of cells",
+              value = nrow(reactive_metadata$data),
+              # value = textOutput(outputId = "original_n_cells"),
+              showcase = bsicons::bs_icon("clipboard-data"),
+              theme_color = "success"
+            ),
+            value_box(
+              title = "Number of cells left after filtering",
+              value = nrow(reactive_metadata$data[master_filter, ]),
+              # value = textOutput(outputId = "filtered_n_cells"),
+              showcase = bsicons::bs_icon("receipt-cutoff"),
+              theme_color = "warning"
+            ),
+            heights_equal = "all",
+            # fixed_width = TRUE,
+            fill = TRUE
+          )
+        )
+      )
+    }
+  })
 
   output$metadata <- DT::renderDataTable({
     DT::datatable(
