@@ -3,7 +3,6 @@ library(shinyFiles)
 library(shinyjs)
 library(shinycssloaders)
 library(plotly)
-# library(gridlayout)
 library(bslib)
 library(bsicons)
 library(Seurat)
@@ -145,8 +144,9 @@ ui <- tagList(
             "### Violin plots of basic characteristics"
           )
         ),
-        qc_module_UI("qc_nCount_RNA"),
-        textOutput(outputId = "qc_value"),
+        # qc_module_UI("qc_nCount_RNA"),
+        uiOutput(outputId = "qc_UI"),
+        # textOutput(outputId = "qc_value"),
         markdown(
           mds = c(
             "### Choose filtering parameters"
@@ -158,7 +158,12 @@ ui <- tagList(
             "Showing the metadata for the dataset, in order to help choose which columns to filter. Some suggestions have been selected in the checkboxes below."
           )
         ),
-        DT::dataTableOutput("metadata")
+        DT::dataTableOutput("metadata"),
+        actionButton(
+          inputId = "phony_button",
+          label = "phony_button"#,
+          # style = "visibility: hidden;"
+        )
       ) # ,
     ),
     nav_panel(
@@ -179,6 +184,7 @@ ui <- tagList(
 # -------------------------------------------------------------------------------
 
 server <- function(input, output, session) {
+  print("############################################## new run")
   ################################################################################
   # Variable setup
   ################################################################################
@@ -191,7 +197,11 @@ server <- function(input, output, session) {
     nCount_RNA_high = 600,
     nFeature_RNA_high = 600,
     nFeature_RNA_low = 200,
-    percent_mito_high = 20
+    percent_mt_high = 20,
+    columns_to_filter = list(
+      "nCount_RNA",
+      "nFeature_RNA"
+    )
   )
 
   # reactive_metadata <- reactiveValues(data = data.frame())
@@ -201,9 +211,9 @@ server <- function(input, output, session) {
   nav_hide(id = "nav", target = "filtering")
   nav_hide(id = "nav", target = "results")
 
-  # filtering debugging
-  nav_show(id = "nav", target = "filtering")
-  nav_select(id = "nav", selected = "filtering")
+  # # filtering debugging
+  # nav_show(id = "nav", target = "filtering")
+  # nav_select(id = "nav", selected = "filtering")
 
   ################################################################################
   # Sidebar
@@ -360,6 +370,8 @@ server <- function(input, output, session) {
     )
   })
 
+  slider_input_vals <- reactiveValues()
+
   shinyjs::onclick("start_processing",
     expr = {
       # shinyjs::alert("will move to Filtering tab")
@@ -369,6 +381,52 @@ server <- function(input, output, session) {
       nav_hide(id = "nav", target = "load_data")
       nav_show(id = "nav", target = "filtering")
       nav_select(id = "nav", selected = "filtering")
+      for (column in colnames(reactive_metadata$data)) {
+        if (is.numeric(reactive_metadata$data[[column]])) {
+          # print(column)
+          values <- stats::quantile(
+            reactive_metadata$data[[column]],
+            probs = c(0.05, 0.95)
+          ) %>%
+            round() %>%
+            as.vector()
+          # slider_input_vals[[column]] <- values
+          if (values[1] != values[2]) {
+            # print(column)
+            if (!column %in% somaker_dataobject$columns_to_filter) {
+              somaker_dataobject$columns_to_filter <- c(
+                somaker_dataobject$columns_to_filter,
+                column
+              )
+            }
+            print(column)
+            print(values)
+            somaker_dataobject[[str_c(column, "_low")]] <- values[1]
+            somaker_dataobject[[str_c(column, "_high")]] <- values[2]
+            slider_input_vals[[column]] <- qc_module_server(
+              str_c("qc_", column),
+              col = column,
+              metadata = reactive_metadata,
+              start_values = values
+            )
+          }
+        }
+        # print(column)
+        output$qc_UI <- renderUI({
+          tagList(
+            lapply(
+              somaker_dataobject$columns_to_filter,
+              FUN = \(column) {
+                # print(column)
+                qc_module_UI(str_c("qc_", column))
+              }
+            )
+          )
+        })
+      }
+      # print(slider_input_vals)
+      # slider_input_vals <- reactiveValues()
+      shinyjs::click("phony_button")
     }
   )
 
@@ -376,23 +434,36 @@ server <- function(input, output, session) {
   # Filtering tab
   ################################################################################
 
-  slider_input_vals <- qc_module_server(
-    "qc_nCount_RNA",
-    col = "nCount_RNA",
-    metadata = reactive_metadata # $data
-  )
-  observe(
-    print(slider_input_vals())
-  )
+
+  # slider_input_vals[[column]] <- qc_module_server(
+  #   str_c("qc_", column),
+  #   col = column,
+  #   metadata = reactive_metadata
+  # )
+
+  # slider_input_vals[["nCount_RNA"]] <- qc_module_server(
+  #   "qc_nCount_RNA",
+  #   col = "nCount_RNA",
+  #   metadata = reactive_metadata
+  # )
+  # observe(
+  #   print(slider_input_vals[["nCount_RNA"]]())
+  # )
 
   output$original_n_cells <- renderText({
     nrow(reactive_metadata$data[, ])
   })
   output$filtered_n_cells <- renderText({
-    nrow(reactive_metadata$data[
-      reactive_metadata$data$nCount_RNA >= slider_input_vals()[1] &
-        reactive_metadata$data$nCount_RNA <= slider_input_vals()[2],
-    ])
+    if (somaker_dataobject$is_valid_data) {
+      nrow(reactive_metadata$data[
+        reactive_metadata$data$nCount_RNA >= slider_input_vals[["nCount_RNA"]]()[1] &
+          reactive_metadata$data$nCount_RNA <= slider_input_vals[["nCount_RNA"]]()[2],
+      ])
+    }
+    # nrow(reactive_metadata$data[
+    #   reactive_metadata$data$nCount_RNA >= slider_input_vals[["nCount_RNA"]]()[1] &
+    #     reactive_metadata$data$nCount_RNA <= slider_input_vals[["nCount_RNA"]]()[2],
+    # ])
   })
 
 

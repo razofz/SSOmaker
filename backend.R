@@ -83,44 +83,144 @@ make_seurat_object <- function(
   sobj <- CreateSeuratObject(counts = data_matrix, project = "SOM") # , min.cells = 3, min.features = 200)
   # print(sobj)
   # print(sobj[[]] %>% head)
-  sobj[["percent_mt"]] <- PercentageFeatureSet(sobj, pattern = "^MT-")
+  sobj[["percent_mt"]] <- PercentageFeatureSet(sobj, pattern = "^(MT)|(mt)")
   return(sobj)
 }
 
 qc_slider_ui <- function(id) {
-  div(
-    style = "display: flex; justify-content: center;",
+  tagList(
+    # uiOutput(NS(id, "output"))
     sliderInput(
       inputId = NS(id, "slider"),
       label = "slider",
       min = 0,
       max = 5000,
-      value = range(0, 5000),
+      value = c(0, 5000),
       width = "75%"
-    )
+    ),
   )
   # uiOutput(NS(id, "output"))
 }
-qc_slider_server <- function(id, col, metadata) {
-  # stopifnot(is.reactive(metadata))
+qc_slider_server <- function(id, col, metadata, start_values) {
+  stopifnot(is.reactivevalues(metadata))
   stopifnot(!is.reactive(col))
+  stopifnot(!is.reactive(start_values))
 
   moduleServer(id, function(input, output, session) {
+    # output$phony_button <-     
+    # update_it <- reactiveVal(F)
+    # shinyjs::onclick(
+    #   "phony_button",
+    #   asis = TRUE,
+    #   expr = {
+    # update_it <- reactiveVal(F)
+    update_it <- reactiveVal(0)
+    # initialised <- F
+    print("start_values")
+    print(start_values)
     observe({
-      col_range <- range(metadata$data[[col]], na.rm = TRUE)
-      updateSliderInput(
-        inputId = "slider",
-        # inputId = NS(id, "slider"),
-        label = col,
-        min = col_range[1],
-        max = col_range[2],
-        value = col_range
-      )
+      # update_it
+      if (isolate(update_it()) < 3) {
+        isolate(update_it(update_it() + 1))
+      }
+      # print(isolate(update_it()))
+      if (update_it() < 2) {
+        print(str_c("update_it(): ", update_it()))
+        invalidateLater(100, session)
+      }
+    # observeEvent(update_it, {
+        # print(typeof(col))
+        # print(typeof(start_values))
+        # print(start_values)
+        # print("range(metadata$data[[col]], na.rm = TRUE)")
+        # print(range(metadata$data[[col]], na.rm = TRUE))
+        col_range <- range(isolate(metadata$data[[col]]), na.rm = TRUE)
+        # print("again")
+        # print("initialised")
+        # print(initialised)
+        updateSliderInput(
+          session,
+          inputId = "slider",
+          # inputId = NS(id, "slider"),
+          label = col,
+          min = col_range[1],
+          max = col_range[2],
+          # min = range(metadata$data[[col]], na.rm = TRUE)[1],
+          # max = range(metadata$data[[col]], na.rm = TRUE)[2],
+          value = start_values
+        )
+        # if (!initialised) {
+        #   # print("HELLO")
+        #   initialised <- T
+        #   invalidateLater(100, session)
+        # }
     })
+    shinyjs::logjs(start_values)
+    # observe({
+    # #   print("update_it")
+    # #   print(update_it)
+    #   # update_it(!update_it())
+    #   update_it(T)
+    # #   print("update_it")
+    # #   print(update_it)
+    # })
+    # # return({start_values})
+    return(reactive(input$slider))
+    # # })
 
-    return(
-      slider = shiny::reactive(input$slider)
-    )
+    # col_range <- reactive({
+    #   range(metadata$data[[col]], na.rm = TRUE)
+    # })
+    # module_output <- reactive({
+    #   output_value <- start_values()
+    # })
+    # observeEvent(start_values(),
+    #   updateSliderInput(
+    #     inputId = "slider",
+    #     # inputId = NS(id, "sliderrr"),
+    #     label = col,
+    #     min = col_range[1],
+    #     max = col_range[2],
+    #     value = start_values
+    #   )
+    # )
+    # output$output <- renderUI({
+    #   col_range <- range(metadata$data[[col]], na.rm = TRUE)
+    #   print(str_c("column: ", col))
+    #   print(col_range)
+    #   print("start_values:")
+    #   print(start_values)
+    #   tagList(sliderInput(
+    #     inputId = "sliderrr",
+    #     # inputId = NS(id, "sliderrr"),
+    #     label = col,
+    #     min = col_range[1],
+    #     max = col_range[2],
+    #     value = start_values
+    #   ))
+    # })
+    # print("input")
+    # print(input)
+    # print("output")
+    # print(output)
+    # print("session")
+    # print(session)
+    # print("input$sliderrr")
+    # print(input$sliderrr)
+    # print("NS(id, 'sliderrr')")
+    # # print(NS(id, 'sliderrr'))
+    # shinyjs::logjs(input)
+    # shinyjs::logjs(output)
+    # shinyjs::logjs(session)
+
+    # return(
+    # start_values
+    # reactive({input$sliderrr})
+    # reactive({input[[NS(id, "sliderrr")]]})
+    # slider = shiny::reactive(input[[NS(id, "sliderrr")]])
+    # slider = shiny::reactive(output$output)
+    # output$output
+    # )
   })
 }
 
@@ -128,14 +228,19 @@ qc_plot_ui <- function(id) {
   uiOutput(NS(id, "output"))
 }
 qc_plot_server <- function(id, col, metadata, ranges) {
-  # stopifnot(is.reactive(metadata))
+  stopifnot(is.reactivevalues(metadata))
   stopifnot(!is.reactive(col))
+  stopifnot(is.reactive(ranges))
 
   moduleServer(id, function(input, output, session) {
+    observe({
+      print("ranges():")
+      print(ranges())
+    })
     output$output <- renderUI({
       tagList(
         # output$foo <- renderText(ranges()),
-        textOutput(ranges()),
+        # textOutput(ranges()),
         renderPlotly({
           metadata$data %>%
             plotly::plot_ly(
@@ -151,7 +256,7 @@ qc_plot_server <- function(id, col, metadata, ranges) {
               shapes = list(
                 # hline(300),
                 hline(ranges()[1]),
-                hline(ranges()[2]) 
+                hline(ranges()[2])
               )
             )
         })
@@ -180,8 +285,11 @@ qc_module_UI <- function(id) {
           )
         ),
         qc_plot_ui(NS(id, "qc_plot")),
-        # verbatimTextOutput(NS(id, "foo")),
-        qc_slider_ui(NS(id, "qc_slide")),
+        verbatimTextOutput(NS(id, "foo")),
+        div(
+          style = "display: flex; justify-content: center;",
+          qc_slider_ui(NS(id, "qc_slide"))
+        ),
         div(
           style = "display: flex; justify-content: center;",
           span(
@@ -200,12 +308,20 @@ qc_module_UI <- function(id) {
     )
   )
 }
-qc_module_server <- function(id, col, metadata) {
+qc_module_server <- function(id, col, metadata, start_values) {
+  # print(is.reactive(start_values))
+  # print(!is.reactive(start_values))
+  # observe({print(metadata$data)})
+  stopifnot(!is.reactive(start_values))
+  stopifnot(is.reactivevalues(metadata))
+  stopifnot(!is.reactive(col))
+
   moduleServer(id, function(input, output, session) {
     slider_input_vals <- qc_slider_server(
       "qc_slide",
       col = col,
-      metadata = metadata
+      metadata = metadata,
+      start_values = start_values
     )
     qc_plot_server(
       "qc_plot",
@@ -213,7 +329,22 @@ qc_module_server <- function(id, col, metadata) {
       metadata = metadata,
       ranges = slider_input_vals
     )
-    output$foo <- renderText({slider_input_vals()})
+    # stopifnot(!is.null(slider_input_vals()))
+    output$foo <- renderText({
+      slider_input_vals()
+    })
+    print("slider_input_vals(): ")
+    observe({
+      print(slider_input_vals())
+    })
+    # observeEvent(
+    #   slider_input_vals,
+    #   {
+    #     output$foo <- renderText({
+    #       slider_input_vals()
+    #     })
+    #   }
+    # )
 
     return(slider_input_vals)
   })
