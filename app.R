@@ -446,9 +446,21 @@ server <- function(input, output, session) {
   })
   output$filtered_n_cells <- renderText({
     if (somaker_dataobject$is_valid_data) {
+      cell_filters <- list()
+      for (column in somaker_dataobject$columns_to_filter) {
+        print(column)
+        reactive_metadata$data[[column]] %>% head %>% print
+        slider_input_vals[[column]]()[1] %>% print
+        cell_filters <- c(
+          cell_filters,
+          list(reactive_metadata$data[[column]] >= slider_input_vals[[column]]()[1]),
+          list(reactive_metadata$data[[column]] <= slider_input_vals[[column]]()[2])
+        )
+      }
+      # print(cell_filters)
+      master_filter <- Reduce(`&`, cell_filters)
       nrow(reactive_metadata$data[
-        reactive_metadata$data$nCount_RNA >= slider_input_vals[["nCount_RNA"]]()[1] &
-          reactive_metadata$data$nCount_RNA <= slider_input_vals[["nCount_RNA"]]()[2],
+        master_filter,
       ])
     }
     # nrow(reactive_metadata$data[
