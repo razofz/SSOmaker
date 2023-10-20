@@ -296,7 +296,36 @@ ui <- tagList(
         "---\n\n",
         "### Filtered metadata"
       )),
-      DT::dataTableOutput("metadata_filtered")
+      DT::dataTableOutput("metadata_filtered"),
+      br(),
+      markdown(str_c(
+        "---\n\n",
+        "# Download data"
+      )),
+      br(),
+      layout_column_wrap(
+        width = 2,
+        div(
+          style = "display: flex; justify-content: center;",
+          downloadButton(
+            "download_seurat_object",
+            "Download Seurat Object",
+            icon = shiny::icon("cloud-download"),
+            class = "btn btn-primary",
+            style = "width: 50%"
+          )
+        ),
+        div(
+          style = "display: flex; justify-content: center;",
+          downloadButton(
+            "download_degs",
+            "Download DEGs",
+            icon = shiny::icon("cloud-download"),
+            class = "btn btn-primary",
+            style = "width: 50%"
+          )
+        )
+      )
     ),
     ##############################################################################
     # Rest of the top bar
@@ -745,6 +774,8 @@ server <- function(input, output, session) {
         ## TODO: more reasonable check for type of column.
         ## Should probably have a better data model for filterable columns.
         ## E.g. "Is it supposed to only have an upper cutoff? Or a lower? Or both?"
+        ## TODO: maybe just have a lower and a higher threshold for non-complexity's sake,
+        ## and if only one is applicable set the other to 0 or Inf, respectively.
         if (length(slider_input_vals[[column]]()) > 1) {
           cell_filters <- c(
             cell_filters,
@@ -787,7 +818,7 @@ server <- function(input, output, session) {
         type = 6,
         expr = {
           reactive_sobj$data <- process_seurat_object(reactive_sobj$data)
-          degs <- find_degs(reactive_sobj$data)
+          degs <- reactiveValues(data = find_degs(reactive_sobj$data))
         },
         caption = HTML(
           "Processing data, hold on..",
@@ -845,17 +876,17 @@ server <- function(input, output, session) {
   })
 
   output$deg <- renderUI({
-    stopifnot(!is.null(degs))
-    print(head(degs))
+    stopifnot(!is.null(degs$data))
+    print(head(degs$data))
     # verbatimTextOutput(degs %>% head())
     to_return <- list()
     print(reactive_metadata$data$seurat_clusters %>% levels() %>% as.numeric())
     panels <- lapply(reactive_metadata$data$seurat_clusters %>% levels(), FUN = \(i) {
       print(i)
       out_id <- str_c("deg_", i)
-      deg_cluster <- degs[degs$cluster == as.character(i), ]
+      deg_cluster <- degs$data[degs$data$cluster == as.character(i), ]
       deg_cluster[, sapply(deg_cluster, is.numeric)] <- round(deg_cluster[, sapply(deg_cluster, is.numeric)], 8)
-      # output[[out_id]] <- renderPrint(head(degs[degs$cluster == as.character(i),]))
+      # output[[out_id]] <- renderPrint(head(degs$data[degs$data$cluster == as.character(i),]))
       return(accordion_panel(
         str_c("Genes identifying cluster ", i, ":"),
         # verbatimTextOutput(out_id),
@@ -916,7 +947,25 @@ server <- function(input, output, session) {
     )
   })
 
-  # TODO: this tab :-)
+
+  output$download_seurat_object <- downloadHandler(
+    filename = function() {
+      str_c("SOM_output_", Sys.Date(), ".rds")
+    },
+    content = function(filename) {
+      saveRDS(reactive_sobj$data, filename)
+    }
+  )
+
+  output$download_degs <- downloadHandler(
+    filename = function() {
+      str_c("SOM_output_DEGs_", Sys.Date(), ".csv")
+    },
+    content = function(filename) {
+      degs$data %>% write.csv(filename)
+    }
+  )
+
 }
 
 shinyApp(ui, server)
