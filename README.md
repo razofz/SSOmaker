@@ -14,6 +14,10 @@ The thresholds limits are updated in real-time, press "Confirm filtering thresho
 
 ![](screenshots/page2_b.png)
 
+Showing a loader while processing the data..
+
+![](screenshots/page2_processing.png)
+
 Results page:
 
 ![](screenshots/page3_a.png)
