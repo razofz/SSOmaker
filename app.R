@@ -147,7 +147,7 @@ ui <- tagList(
         uiOutput(outputId = "qc_UI"),
         # layout_column_wrap(
         #   width = 4,
-          uiOutput(outputId = "filtering_thresholds"),
+        uiOutput(outputId = "filtering_thresholds"),
         # ),
         uiOutput(outputId = "confirm_filtering_UI"),
         markdown(
@@ -164,11 +164,143 @@ ui <- tagList(
         DT::dataTableOutput("metadata")
       ) # ,
     ),
+    ##############################################################################
+    # Results tab
+    ##############################################################################
     nav_panel(
       id = "results",
       value = "results",
-      title = card_title("Results")
+      title = card_title("Results"),
+      markdown(
+        mds = c(
+          "# Results",
+          "---"
+        )
+      ),
+      markdown(str_c("## QC results")),
+      br(),
+      h3("Distribution of metadata columns post filtering"),
+      layout_column_wrap(
+        width = "600px",
+        uiOutput("results_violin_plots"),
+        # div(
+        #   style = "display: flex; justify-content: center;",
+        #   div(
+        #     violin_plot_ui("vln_nCount_RNA"),
+        #     style = "width: 60%; max-width: 600px;",
+        #   )
+        # )
+      ),
+      br(),
+      markdown(str_c(
+        "### Elbow plot\n\n",
+        "**PCA evaluation**"
+      )),
+      tooltip(
+        span(
+          helpText("What does an elbow plot show? "),
+          bs_icon("info-circle")
+        ),
+        str_c(
+          "An elbow plot in this context shows the PCs' (principal components') ",
+          "standard deviation. We do PCA (principal component analysis) to ",
+          "reduce the number of dimensions in the dataset. PCA captures the directions in ",
+          "the dataset that have the most variance. The elbow plot shows this variation, ",
+          "and we specifically want to look for an \"elbow\" in the plot, which is ",
+          "the point where the \"line\" tapers off. This is the point where increasing the ",
+          "number of PCs doesn't add much information, and we can stop there."
+        )
+      ),
+      div(
+        style = "display: flex; justify-content: center;",
+        div(
+          plotOutput("elbow_plot"),
+          style = "width: 100%; max-width: 800px;"
+        )
+      ),
+      markdown(str_c(
+        "### Volcano plots of highly variable genes (HVGs)\n\n"
+      )),
+      # plotOutput("hvg_plot"),
+      # div(
+      #   style = "display: flex; justify-content: center;",
+      #   div(
+      #     plotOutput("hvg_plot"),
+      #     # plotOutput("pca_plot"),
+      #     style = "width: 60%; max-width: 1200px;",
+      #   )
+      # ),
+      layout_column_wrap(
+        width = 2,
+        # width = "400px",
+        # style = "display: flex; justify-content: center;",
+        div(
+          style = "display: flex; justify-content: center;",
+          div(
+            plotOutput("hvg_plot_unlabelled"),
+            style = "width: 100%; max-width: 600px;"
+          )
+        ),
+        div(
+          style = "display: flex; justify-content: center;",
+          div(
+            plotOutput("hvg_plot_labelled"),
+            style = "width: 100%; max-width: 600px;"
+          )
+        )
+      ),
+      br(),
+      markdown(str_c(
+        "### Scatter plot of the first two PCs\n\n"
+      )),
+      # plotOutput("pca_plot"),
+      div(
+        style = "display: flex; justify-content: center;",
+        div(
+          plotOutput("pca_plot"),
+          style = "width: 60%; max-width: 600px;"
+        )
+      ),
+      markdown(str_c(
+        "---\n\n",
+        "## More informative plots",
+        "\n\n",
+        "### UMAP"
+      )),
+      div(
+        style = "display: flex; justify-content: center;",
+        div(
+          plotOutput("umap_plot"),
+          style = "width: 60%; max-width: 600px;"
+        )
+      ),
+      markdown(str_c(
+        "### Differentially expressed genes (DEGs)"
+      )),
+      tooltip(
+        span(
+          helpText("Note on the following tables "),
+          bs_icon("info-circle")
+        ),
+        str_c(
+          "The values in the following DEG tables are rounded to 8 decimal points. ",
+          "This is for clarity reasons in this web interface. ",
+          "The exported tables will have the full precision."
+        )
+      ),
+      br(),
+      br(),
+      uiOutput("deg"),
+      br(),
+      markdown(str_c(
+        "---\n\n",
+        "### Filtered metadata"
+      )),
+      DT::dataTableOutput("metadata_filtered")
     ),
+    ##############################################################################
+    # Rest of the top bar
+    ##############################################################################
     nav_spacer(),
     nav_item(
       markdown(
@@ -209,9 +341,9 @@ server <- function(input, output, session) {
   nav_hide(id = "nav", target = "filtering")
   nav_hide(id = "nav", target = "results")
 
-  # # filtering debugging
-  # nav_show(id = "nav", target = "filtering")
-  # nav_select(id = "nav", selected = "filtering")
+  # # debugging
+  # nav_show(id = "nav", target = "results")
+  # nav_select(id = "nav", selected = "results")
 
   ################################################################################
   # Sidebar
@@ -407,8 +539,13 @@ server <- function(input, output, session) {
               metadata = reactive_metadata,
               start_values = values
             )
+            # print(class(isolate(slider_input_vals[[column]]())))
+            # somaker_dataobject[[str_c(column, "_low")]] <- slider_input_vals[[column]]
+            # somaker_dataobject[[str_c(column, "_low")]] <- slider_input_vals[[column]]()[1]
+            # somaker_dataobject[[str_c(column, "_high")]] <- slider_input_vals[[column]]()[2]
           }
         }
+        somaker_dataobject$original_n_cells <- nrow(reactive_metadata$data)
         # print(column)
         output$qc_UI <- renderUI({
           tagList(
@@ -466,12 +603,12 @@ server <- function(input, output, session) {
     div(
       # markdown("Data loaded correctly:"),
       # verbatimTextOutput("sobj_out"),
-      markdown("Press button below to start processing!"),
+      # markdown("Press button below to start processing!"),
       # verbatimTextOutput("filtering_thresholds"),
       div(
         style = "display: flex; justify-content: center;",
         actionButton(
-          "start_processing",
+          "confirm_filtering",
           label = HTML(
             bsicons::bs_icon("bar-chart-fill"),
             "<strong>",
@@ -511,10 +648,9 @@ server <- function(input, output, session) {
       to_return <- tagList()
       j <- 1
       for (i in seq_len(length(somaker_dataobject$columns_to_filter))) {
-        if (length( slider_input_vals[[
-              somaker_dataobject$columns_to_filter[[i]]
-            ]]()
-            ) > 1) {
+        if (length(slider_input_vals[[
+          somaker_dataobject$columns_to_filter[[i]]
+        ]]()) > 1) {
           to_return[[j]] <- value_box(
             # title = somaker_dataobject$columns_to_filter[[i]],
             title = markdown(str_c(
@@ -525,7 +661,7 @@ server <- function(input, output, session) {
             theme_color = "secondary"
           )
           j <- j + 1
-          }
+        }
         to_return[[j]] <- value_box(
           # title = somaker_dataobject$columns_to_filter[[i]],
           title = markdown(str_c(
@@ -537,26 +673,11 @@ server <- function(input, output, session) {
         )
         j <- j + 1
       }
-      # to_return[[j]] <- value_box(
-      #   title = "Original number of cells",
-      #   value = nrow(reactive_metadata$data),
-      #   # value = textOutput(outputId = "original_n_cells"),
-      #   showcase = bsicons::bs_icon("clipboard-data"),
-      #   theme_color = "success"
-      # )
-      # j <- j + 1
-      # to_return[[j]] <- value_box(
-      #   title = "Number of cells left after filtering",
-      #   value = nrow(reactive_metadata$data[master_filter, ]),
-      #   # value = textOutput(outputId = "filtered_n_cells"),
-      #   showcase = bsicons::bs_icon("receipt-cutoff"),
-      #   theme_color = "warning"
-      # )
-      
+
       return(
         tagList(
           layout_column_wrap(
-            width = "220px",
+            width = "240px",
             # width = .25,
             !!!to_return,
             heights_equal = "all",
@@ -604,6 +725,196 @@ server <- function(input, output, session) {
   ################################################################################
   # Results tab
   ################################################################################
+
+  shinyjs::onclick("confirm_filtering",
+    expr = {
+      shinyjs::disable("confirm_filtering")
+
+      nav_hide(id = "nav", target = "load_data")
+      nav_show(id = "nav", target = "results")
+      nav_select(id = "nav", selected = "results")
+      nav_hide(id = "nav", target = "filtering")
+
+
+      ## NB: duplicated code, here be dragons
+      cell_filters <- list()
+      for (column in somaker_dataobject$columns_to_filter) {
+        # print(column)
+        # reactive_metadata$data[[column]] %>% head %>% print
+        # slider_input_vals[[column]]()[1] %>% print
+        ## TODO: more reasonable check for type of column.
+        ## Should probably have a better data model for filterable columns.
+        ## E.g. "Is it supposed to only have an upper cutoff? Or a lower? Or both?"
+        if (length(slider_input_vals[[column]]()) > 1) {
+          cell_filters <- c(
+            cell_filters,
+            list(reactive_metadata$data[[column]] >= slider_input_vals[[column]]()[1])
+          )
+        }
+        cell_filters <- c(
+          cell_filters,
+          list(reactive_metadata$data[[column]] <= slider_input_vals[[column]]()[2])
+        )
+      }
+      # print(cell_filters)
+      master_filter <- Reduce(`&`, cell_filters)
+      somaker_dataobject$filtered_n_cells <- nrow(reactive_metadata$data[
+        master_filter,
+      ])
+      reactive_metadata$data <- reactive_metadata$data[
+        master_filter,
+      ]
+      showPageSpinner(
+        type = 6,
+        expr = {
+          reactive_sobj$data <- subset(
+            reactive_sobj$data,
+            cells = rownames(reactive_metadata$data)
+          )
+        },
+        caption = HTML(
+          "Subsetting data..",
+          bsicons::bs_icon("scissors")
+        )
+      )
+
+      for (md_column in somaker_dataobject$columns_to_filter) {
+        somaker_dataobject[[str_c(md_column, "_low")]] <- slider_input_vals[[md_column]]()[1]
+        somaker_dataobject[[str_c(md_column, "_high")]] <- slider_input_vals[[md_column]]()[2]
+      }
+
+      showPageSpinner(
+        type = 6,
+        expr = {
+          reactive_sobj$data <- process_seurat_object(reactive_sobj$data)
+          degs <- find_degs(reactive_sobj$data)
+        },
+        caption = HTML(
+          "Processing data, hold on..",
+          bsicons::bs_icon("clipboard2-pulse"),
+          bsicons::bs_icon("hourglass-split")
+        )
+      )
+      reactive_metadata$data <- reactive_sobj$data@meta.data
+    }
+  )
+
+  output$results_violin_plots <- renderUI({
+    to_return <- tagList()
+    for (i in seq_len(length(somaker_dataobject$columns_to_filter))) {
+      violin_plot_server(
+        str_c("vln_", somaker_dataobject$columns_to_filter[[i]]),
+        somaker_dataobject$columns_to_filter[[i]],
+        reactive_metadata
+      )
+      to_return[[i]] <- div(
+        style = "display: flex; justify-content: center;",
+        div(
+          markdown(str_c(
+            "**", somaker_dataobject$columns_to_filter[[i]], "**"
+          )),
+          violin_plot_ui(str_c("vln_", somaker_dataobject$columns_to_filter[[i]])),
+          style = "width: 60%; max-width: 600px;",
+        )
+      )
+    }
+    return(to_return)
+  })
+
+  output$elbow_plot <- renderPlot({
+    Seurat::ElbowPlot(reactive_sobj$data)
+  })
+
+  output$hvg_plot_unlabelled <- renderPlot({
+    top10 <- head(VariableFeatures(reactive_sobj$data), 10)
+    return(VariableFeaturePlot(reactive_sobj$data))
+  })
+  output$hvg_plot_labelled <- renderPlot({
+    top10 <- head(VariableFeatures(reactive_sobj$data), 10)
+    plot1 <- VariableFeaturePlot(reactive_sobj$data)
+    plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+    return(plot2)
+  })
+
+  output$pca_plot <- renderPlot({
+    DimPlot(reactive_sobj$data, reduction = "pca", group.by = "orig.ident")
+  })
+
+  output$umap_plot <- renderPlot({
+    DimPlot(reactive_sobj$data, reduction = "umap", group.by = "seurat_clusters")
+  })
+
+  output$deg <- renderUI({
+    stopifnot(!is.null(degs))
+    print(head(degs))
+    # verbatimTextOutput(degs %>% head())
+    to_return <- list()
+    print(reactive_metadata$data$seurat_clusters %>% levels() %>% as.numeric())
+    panels <- lapply(reactive_metadata$data$seurat_clusters %>% levels(), FUN = \(i) {
+      print(i)
+      out_id <- str_c("deg_", i)
+      deg_cluster <- degs[degs$cluster == as.character(i), ]
+      deg_cluster[, sapply(deg_cluster, is.numeric)] <- round(deg_cluster[, sapply(deg_cluster, is.numeric)], 8)
+      # output[[out_id]] <- renderPrint(head(degs[degs$cluster == as.character(i),]))
+      return(accordion_panel(
+        str_c("Genes identifying cluster ", i, ":"),
+        # verbatimTextOutput(out_id),
+        DT::renderDataTable(
+          DT::datatable(
+            deg_cluster,
+            caption = str_c("Cluster ", i),
+            fillContainer = F,
+            width = "100%"
+          )
+        ),
+        icon = bsicons::bs_icon("table")
+        # icon = bsicons::bs_icon("sign-intersection-fill")
+      ))
+    })
+    accordion(
+      !!!panels,
+      id = "deg_accordion",
+      title = "The top DEGs for the different clusters",
+      multiple = FALSE
+    )
+  })
+
+  # output$deg <- renderUI({
+  #   stopifnot(!is.null(degs))
+  #   print(head(degs))
+  #   # verbatimTextOutput(degs %>% head())
+  #   to_return <- tagList()
+  #   j <- 1
+  #   print(reactive_metadata$data$seurat_clusters %>% levels %>% as.numeric)
+  #   for (i in reactive_metadata$data$seurat_clusters %>% levels %>% as.numeric) {
+  #     print(i)
+  #     out_id <- str_c("deg_", i)
+  #     print(out_id)
+  #     print(head(degs[degs$cluster == as.character(i),]))
+  #     output[[out_id]] <- renderPrint(head(degs[degs$cluster == as.character(i),]))
+  #     to_return[[j]] <- markdown(str_c(
+  #       "DEGs for cluster ", i, ":"
+  #     ))
+  #     j <- j + 1
+  #     to_return[[j]] <- verbatimTextOutput(out_id)
+  #     j <- j + 1
+  #   }
+  #   return(to_return)
+  # })
+
+  output$metadata_filtered <- DT::renderDataTable({
+    shinyjs::logjs(reactive_sobj$data@meta.data %>% dim())
+    shinyjs::logjs(reactive_metadata$data %>% dim())
+    DT::datatable(
+      reactive_sobj$data@meta.data,
+      caption = "Metadata",
+      # options = list(
+      #   pageLength = 5
+      # ),
+      fillContainer = F
+      # style = 'bootstrap'
+    )
+  })
 
   # TODO: this tab :-)
 }

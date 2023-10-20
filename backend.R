@@ -87,6 +87,48 @@ make_seurat_object <- function(
   return(sobj)
 }
 
+process_seurat_object <- function(seurat_object) {
+  # shinyjs::logjs(seurat_object)
+
+  print("Normalising data..")
+  shinyjs::logjs("Normalising data..")
+  seurat_object <- NormalizeData(object = seurat_object, verbose = FALSE)
+  n_hvgs <- 2e3
+  if (length(Cells(seurat_object)) < 2e3) n_hvgs <- length(Cells(seurat_object)) * 0.4
+  print("Finding HVGs..")
+  shinyjs::logjs("Finding HVGs..")
+  seurat_object <- FindVariableFeatures(object = seurat_object, nfeatures = n_hvgs, verbose = FALSE)
+  print("Scaling data..")
+  shinyjs::logjs("Scaling data..")
+  seurat_object <- ScaleData(object = seurat_object, verbose = FALSE)
+  print("Calculating PCA..")
+  shinyjs::logjs("Calculating PCA..")
+  seurat_object <- RunPCA(object = seurat_object, verbose = FALSE)
+  print("Finding neighbours..")
+  shinyjs::logjs("Finding neighbours..")
+  seurat_object <- FindNeighbors(object = seurat_object, verbose = FALSE)
+  print("Clustering..")
+  shinyjs::logjs("Clustering..")
+  seurat_object <- FindClusters(object = seurat_object, verbose = FALSE)
+  print("Running UMAP..")
+  shinyjs::logjs("Running UMAP..")
+  seurat_object <- RunUMAP(object = seurat_object, dims = 1:10, verbose = FALSE)
+
+  return(seurat_object)
+}
+
+find_degs <- function(seurat_object) {
+  print("Identifying DEGs..")
+  shinyjs::logjs("Identifying DEGs..")
+  markers <- FindAllMarkers(seurat_object, only.pos = TRUE)
+  markers <- markers %>% arrange(cluster, desc(avg_log2FC))
+  return(markers)
+}
+
+################################################################################
+# shiny modules
+################################################################################
+
 qc_slider_ui <- function(id) {
   tagList(
     sliderInput(
@@ -124,7 +166,7 @@ qc_slider_server <- function(id, col, metadata, start_values) {
         value = start_values
       )
     })
-    shinyjs::logjs(start_values)
+    # shinyjs::logjs(start_values)
 
     return(reactive(input$slider))
   })
@@ -139,10 +181,10 @@ qc_plot_server <- function(id, col, metadata, ranges) {
   stopifnot(is.reactive(ranges))
 
   moduleServer(id, function(input, output, session) {
-    observe({
-      print("ranges():")
-      print(ranges())
-    })
+    # observe({
+    #   print("ranges():")
+    #   print(ranges())
+    # })
     output$output <- renderUI({
       tagList(
         # output$foo <- renderText(ranges()),
@@ -238,6 +280,49 @@ qc_module_server <- function(id, col, metadata, start_values) {
     return(slider_input_vals)
   })
 }
+
+violin_plot_ui <- function(id) {
+  uiOutput(NS(id, "output"))
+}
+violin_plot_server <- function(id, col, metadata) {
+  stopifnot(is.reactivevalues(metadata))
+  stopifnot(!is.reactive(col))
+
+  moduleServer(id, function(input, output, session) {
+    output$output <- renderUI({
+      tagList(
+        div(
+          style = "display: flex; justify-content: center;",
+          tooltip(
+            span(
+              helpText("Need help? "),
+              bs_icon("info-circle")
+            ),
+            str_c(
+              "Hover over the plot to see extra statistics about the metadata column. ",
+              "You can also drag to zoom in on a specific area of the plot."
+            )
+          )
+        ),
+        renderPlotly({
+          metadata$data %>%
+            plotly::plot_ly(
+              y = as.formula(str_c(" ~ ", col)),
+              type = "violin",
+              box = list(visible = T),
+              meanline = list(visible = T),
+              name = col,
+              x0 = col
+            ) %>%
+            layout(
+              yaxis = list(zeroline = F)
+            )
+        })
+      )
+    })
+  })
+}
+
 
 test_ui <- function(id) {
   uiOutput(NS(id, "output"))
