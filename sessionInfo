@@ -1,0 +1,70 @@
+##------ R version 4.3.1 (2023-06-16), Beagle Scouts ------##
+> source('app.R'); sessionInfo()
+R version 4.3.1 (2023-06-16)
+Platform: x86_64-conda-linux-gnu (64-bit)
+Running under: Ubuntu 22.04.3 LTS
+
+Matrix products: default
+BLAS/LAPACK: /home/raz/anaconda3/envs/shiny/lib/libopenblasp-r0.3.24.so;  LAPACK version 3.11.0
+
+locale:
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C              
+ [3] LC_TIME=sv_SE.UTF-8        LC_COLLATE=en_US.UTF-8    
+ [5] LC_MONETARY=sv_SE.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=sv_SE.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=sv_SE.UTF-8 LC_IDENTIFICATION=C       
+
+time zone: Europe/Stockholm
+tzcode source: system (glibc)
+
+attached base packages:
+[1] stats     graphics  grDevices datasets  utils     methods   base     
+
+other attached packages:
+ [1] htmltools_0.5.6.1          DT_0.29                   
+ [3] dplyr_1.1.3                stringr_1.5.0             
+ [5] SeuratObject_4.1.4         Seurat_4.4.0              
+ [7] bsicons_0.1.1              bslib_0.5.1               
+ [9] plotly_4.10.2              ggplot2_3.4.3             
+[11] shinycssloaders_1.0.0.9011 shinyjs_2.1.0             
+[13] shinyFiles_0.9.3           shiny_1.7.5               
+
+loaded via a namespace (and not attached):
+  [1] deldir_1.0-9           pbapply_1.7-2          gridExtra_2.3         
+  [4] rlang_1.1.1            magrittr_2.0.3         RcppAnnoy_0.0.21      
+  [7] spatstat.geom_3.2-5    matrixStats_1.0.0      ggridges_0.5.4        
+ [10] compiler_4.3.1         png_0.1-8              vctrs_0.6.3           
+ [13] reshape2_1.4.4         pkgconfig_2.0.3        fastmap_1.1.1         
+ [16] ellipsis_0.3.2         fontawesome_0.5.2      utf8_1.2.3            
+ [19] promises_1.2.1         purrr_1.0.2            cachem_1.0.8          
+ [22] jsonlite_1.8.7         goftest_1.2-3          later_1.3.1           
+ [25] spatstat.utils_3.0-3   irlba_2.3.5.1          parallel_4.3.1        
+ [28] cluster_2.1.4          R6_2.5.1               ica_1.0-3             
+ [31] stringi_1.7.12         RColorBrewer_1.1-3     spatstat.data_3.0-1   
+ [34] reticulate_1.32.0      parallelly_1.36.0      lmtest_0.9-40         
+ [37] jquerylib_0.1.4        scattermore_1.2        Rcpp_1.0.11           
+ [40] tensor_1.5             future.apply_1.11.0    zoo_1.8-12            
+ [43] sctransform_0.4.0      httpuv_1.6.11          Matrix_1.6-1.1        
+ [46] splines_4.3.1          igraph_1.5.1           tidyselect_1.2.0      
+ [49] yaml_2.3.7             abind_1.4-5            spatstat.random_3.1-6 
+ [52] codetools_0.2-19       miniUI_0.1.1.1         spatstat.explore_3.2-3
+ [55] listenv_0.9.0          lattice_0.21-9         tibble_3.2.1          
+ [58] plyr_1.8.9             withr_2.5.1            ROCR_1.0-11           
+ [61] Rtsne_0.16             future_1.33.0          survival_3.5-7        
+ [64] polyclip_1.10-6        fitdistrplus_1.1-11    pillar_1.9.0          
+ [67] KernSmooth_2.23-22     generics_0.1.3         sp_2.1-0              
+ [70] commonmark_1.9.0       munsell_0.5.0          scales_1.2.1          
+ [73] globals_0.16.2         xtable_1.8-4           glue_1.6.2            
+ [76] lazyeval_0.2.2         tools_4.3.1            data.table_1.14.8     
+ [79] RANN_2.6.1             fs_1.6.3               leiden_0.4.3          
+ [82] cowplot_1.1.1          grid_4.3.1             tidyr_1.3.0           
+ [85] crosstalk_1.2.0        colorspace_2.1-0       nlme_3.1-163          
+ [88] patchwork_1.1.3        cli_3.6.1              spatstat.sparse_3.0-2 
+ [91] fansi_1.0.5            viridisLite_0.4.2      uwot_0.1.16           
+ [94] gtable_0.3.4           sass_0.4.7             digest_0.6.33         
+ [97] progressr_0.14.0       ggrepel_0.9.3          htmlwidgets_1.6.2     
+[100] memoise_2.0.1          lifecycle_1.0.3        httr_1.4.7            
+[103] mime_0.12              MASS_7.3-60           
+> 
+> 
