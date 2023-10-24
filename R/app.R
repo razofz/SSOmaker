@@ -1,4 +1,3 @@
-
 SeuratObjectMaker <- function() {
   ui <- htmltools::tagList(
     shinyjs::useShinyjs(),
@@ -384,7 +383,7 @@ SeuratObjectMaker <- function() {
     volumes <- c(Home = getwd(), "R Installation" = R.home(), shinyFiles::getVolumes()()) # TODO: change back to fs::path_home() when done testing
 
     withr::with_options(
-      new = list(shiny.maxRequestSize = 900 * 1024^2), # 900 MB limit 
+      new = list(shiny.maxRequestSize = 900 * 1024^2), # 900 MB limit
       code = shinyFiles::shinyDirChoose(
         input,
         "directory",
@@ -952,7 +951,6 @@ SeuratObjectMaker <- function() {
         degs$data %>% write.csv(filename)
       }
     )
-
   }
 
   return(

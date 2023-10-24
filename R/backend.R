@@ -1,4 +1,3 @@
-
 detect_features_format <- function(features) {
   print(head(features))
   # check type of input: {dataframe,character vector,etc}
