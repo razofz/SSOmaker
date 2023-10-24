@@ -150,48 +150,44 @@ qc_module_server <- function(id, col, metadata, start_values) {
   })
 }
 
-make_qc_plots <- function(
-    sobj,
-    col,
-    input, output, session
-    # min_cutoff,
-    # max_cutoff
-    ) {
-  fig <- shiny::reactive({
-    if (col %in% colnames(sobj[[]])) {
-      fig1 <- sobj[[]] %>%
-        plotly::plot_ly(
-          y = as.formula(stringr::str_c(" ~ ", col)),
-          type = "violin",
-          box = list(visible = T),
-          meanline = list(visible = T),
-          name = "nCount_RNA",
-          x0 = "nCount_RNA"
-        ) %>%
-        layout(
-          yaxis = list(zeroline = F),
-          shapes = list(
-            # hline(min_cutoff),
-            hline(input$qc_slider_nCount_RNA[1]),
-            hline(input$qc_slider_nCount_RNA[2]),
-            # hline(max_cutoff)
+violin_plot_ui <- function(id) {
+  shiny::uiOutput(NS(id, "output"))
+}
+violin_plot_server <- function(id, col, metadata) {
+  stopifnot(shiny::is.reactivevalues(metadata))
+  stopifnot(!shiny::is.reactive(col))
+
+  shiny::moduleServer(id, function(input, output, session) {
+    output$output <- shiny::renderUI({
+      htmltools::tagList(
+        htmltools::div(
+          style = "display: flex; justify-content: center;",
+          bslib::tooltip(
+            htmltools::span(
+              shiny::helpText("Need help? "),
+              bsicons::bs_icon("info-circle")
+            ),
+            stringr::str_c(
+              "Hover over the plot to see extra statistics about the metadata column. ",
+              "You can also drag to zoom in on a specific area of the plot."
+            )
           )
-        )
-      fig2 <- sobj[[]] %>%
-        plotly::plot_ly(
-          y = as.formula(stringr::str_c(" ~ log2(", col, ")")),
-          type = "violin",
-          box = list(visible = T),
-          meanline = list(visible = T),
-          name = "log2(nCount_RNA)",
-          x0 = "nCount_RNA"
-        ) %>%
-        layout(yaxis = list(zeroline = F), shapes = list(hline(6), hline(9.5)))
-      fig <- plotly::subplot(fig1, fig2)
-      return(fig)
-    } else {
-      return(NULL)
-    }
+        ),
+        plotly::renderPlotly({
+          metadata$data %>%
+            plotly::plot_ly(
+              y = as.formula(stringr::str_c(" ~ ", col)),
+              type = "violin",
+              box = list(visible = T),
+              meanline = list(visible = T),
+              name = col,
+              x0 = col
+            ) %>%
+            layout(
+              yaxis = list(zeroline = F)
+            )
+        })
+      )
+    })
   })
-  return(fig)
 }
