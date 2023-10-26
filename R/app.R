@@ -1,4 +1,13 @@
-SeuratObjectMaker <- function() {
+SeuratObjectMaker <- function(
+  appDir = getwd(),
+  port = getOption("shiny.port"),
+  launch.browser = getOption("shiny.launch.browser", interactive()),
+  host = getOption("shiny.host", "127.0.0.1"),
+  workerId = "",
+  quiet = FALSE,
+  display.mode = c("auto", "normal", "showcase"),
+  test.mode = getOption("shiny.testmode", FALSE)
+  ) {
   ui <- htmltools::tagList(
     shinyjs::useShinyjs(),
     bslib::page_navbar(
@@ -954,6 +963,19 @@ SeuratObjectMaker <- function() {
   }
 
   return(
-    shiny::shinyApp(ui, server)
+    shiny::shinyApp(
+      ui,
+      server,
+      options = list(
+        appDir = appDir,
+        port = port,
+        launch.browser = launch.browser,
+        host = host,
+        workerId = workerId,
+        quiet = quiet,
+        display.mode = display.mode,
+        test.mode = test.mode
+      )
+    )
   )
 }
