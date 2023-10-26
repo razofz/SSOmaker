@@ -64,7 +64,6 @@ make_seurat_object <- function(
   # print(dim(data_matrix))
   sobj <- Seurat::CreateSeuratObject(counts = data_matrix, project = "SOM") # , min.cells = 3, min.features = 200)
   # print(sobj)
-  # print(sobj[[]] %>% head)
   sobj[["percent_mt"]] <- Seurat::PercentageFeatureSet(sobj, pattern = "^(MT)|(mt)")
   return(sobj)
 }
@@ -103,7 +102,7 @@ find_degs <- function(seurat_object) {
   print("Identifying DEGs..")
   shinyjs::logjs("Identifying DEGs..")
   markers <- Seurat::FindAllMarkers(seurat_object, only.pos = TRUE)
-  markers <- markers %>% dplyr::arrange(cluster, dplyr::desc(avg_log2FC))
+  markers <- dplyr::arrange(.data = markers, cluster, dplyr::desc(avg_log2FC))
   return(markers)
 }
 

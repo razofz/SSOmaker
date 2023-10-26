@@ -59,25 +59,25 @@ qc_plot_server <- function(id, col, metadata, ranges) {
         # output$foo <- renderText(ranges()),
         # textOutput(ranges()),
         plotly::renderPlotly({
-            p <- plotly::plot_ly(
-              data = metadata$data,
-              y = as.formula(stringr::str_c(" ~ ", col)),
-              type = "violin",
-              box = list(visible = T),
-              meanline = list(visible = T),
-              name = col,
-              x0 = col
-            )
-            return(
-              plotly::layout(
-                p = p,
-                yaxis = list(zeroline = F),
-                shapes = list(
-                  hline(ranges()[1]),
-                  hline(ranges()[2])
-                )
+          p <- plotly::plot_ly(
+            data = metadata$data,
+            y = as.formula(stringr::str_c(" ~ ", col)),
+            type = "violin",
+            box = list(visible = T),
+            meanline = list(visible = T),
+            name = col,
+            x0 = col
+          )
+          return(
+            plotly::layout(
+              p = p,
+              yaxis = list(zeroline = F),
+              shapes = list(
+                hline(ranges()[1]),
+                hline(ranges()[2])
               )
             )
+          )
         })
       )
     })
@@ -177,21 +177,21 @@ violin_plot_server <- function(id, col, metadata) {
           )
         ),
         plotly::renderPlotly({
-            p <- plotly::plot_ly(
-              data = metadata$data,
-              y = as.formula(stringr::str_c(" ~ ", col)),
-              type = "violin",
-              box = list(visible = T),
-              meanline = list(visible = T),
-              name = col,
-              x0 = col
+          p <- plotly::plot_ly(
+            data = metadata$data,
+            y = as.formula(stringr::str_c(" ~ ", col)),
+            type = "violin",
+            box = list(visible = T),
+            meanline = list(visible = T),
+            name = col,
+            x0 = col
+          )
+          return(
+            plotly::layout(
+              p = p,
+              yaxis = list(zeroline = F)
             )
-            return(
-              plotly::layout(
-                p = p,
-                yaxis = list(zeroline = F)
-              )
-            )
+          )
         })
       )
     })

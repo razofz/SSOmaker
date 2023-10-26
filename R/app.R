@@ -1,13 +1,12 @@
 SeuratObjectMaker <- function(
-  appDir = getwd(),
-  port = getOption("shiny.port"),
-  launch.browser = getOption("shiny.launch.browser", interactive()),
-  host = getOption("shiny.host", "127.0.0.1"),
-  workerId = "",
-  quiet = FALSE,
-  display.mode = c("auto", "normal", "showcase"),
-  test.mode = getOption("shiny.testmode", FALSE)
-  ) {
+    appDir = getwd(),
+    port = getOption("shiny.port"),
+    launch.browser = getOption("shiny.launch.browser", interactive()),
+    host = getOption("shiny.host", "127.0.0.1"),
+    workerId = "",
+    quiet = FALSE,
+    display.mode = c("auto", "normal", "showcase"),
+    test.mode = getOption("shiny.testmode", FALSE)) {
   ui <- htmltools::tagList(
     shinyjs::useShinyjs(),
     bslib::page_navbar(
@@ -142,18 +141,18 @@ SeuratObjectMaker <- function(
           shiny::uiOutput(outputId = "filtering_thresholds"),
           # ),
           shiny::uiOutput(outputId = "confirm_filtering_UI"),
-          shiny::markdown(
-            mds = c(
-              "### Choose filtering parameters"
-            )
-          ),
-          shiny::textOutput(outputId = "filtered_dimensions"),
-          shiny::markdown(
-            mds = c(
-              "Showing the metadata for the dataset, in order to help choose which columns to filter. Some suggestions have been selected in the checkboxes below."
-            )
-          ),
-          DT::dataTableOutput("metadata")
+          # shiny::markdown(
+          #   mds = c(
+          #     "### Choose filtering parameters"
+          #   )
+          # ),
+          # shiny::textOutput(outputId = "filtered_dimensions"),
+          # shiny::markdown(
+          #   mds = c(
+          #     "Showing the metadata for the dataset, in order to help choose which columns to filter. Some suggestions have been selected in the checkboxes below."
+          #   )
+          # ),
+          # DT::dataTableOutput("metadata")
         ) # ,
       ),
       ##############################################################################
@@ -538,12 +537,14 @@ SeuratObjectMaker <- function(
         for (column in colnames(reactive_metadata$data)) {
           if (is.numeric(reactive_metadata$data[[column]])) {
             # print(column)
-            values <- stats::quantile(
-              reactive_metadata$data[[column]],
-              probs = c(0.05, 0.95)
-            ) %>%
-              round() %>%
-              as.vector()
+            values <- as.vector(
+              round(
+                stats::quantile(
+                  reactive_metadata$data[[column]],
+                  probs = c(0.05, 0.95)
+                )
+              )
+            )
             # slider_input_vals[[column]] <- values
             if (values[1] != values[2]) {
               # print(column)
@@ -875,28 +876,33 @@ SeuratObjectMaker <- function(
       print(head(degs$data))
       # shiny::verbatimTextOutput(degs %>% head())
       to_return <- list()
-      print(reactive_metadata$data$seurat_clusters %>% levels() %>% as.numeric())
-      panels <- lapply(reactive_metadata$data$seurat_clusters %>% levels(), FUN = \(i) {
-        print(i)
-        out_id <- stringr::str_c("deg_", i)
-        deg_cluster <- degs$data[degs$data$cluster == as.character(i), ]
-        deg_cluster[, sapply(deg_cluster, is.numeric)] <- round(deg_cluster[, sapply(deg_cluster, is.numeric)], 8)
-        # output[[out_id]] <- renderPrint(head(degs$data[degs$data$cluster == as.character(i),]))
-        return(bslib::accordion_panel(
-          stringr::str_c("Genes identifying cluster ", i, ":"),
-          # shiny::verbatimTextOutput(out_id),
-          DT::renderDataTable(
-            DT::datatable(
-              deg_cluster,
-              caption = stringr::str_c("Cluster ", i),
-              fillContainer = F,
-              width = "100%"
-            )
-          ),
-          icon = bsicons::bs_icon("table")
-          # icon = bsicons::bs_icon("sign-intersection-fill")
-        ))
-      })
+      # print(reactive_metadata$data$seurat_clusters %>% levels() %>% as.numeric())
+      panels <- lapply(
+        levels(
+          reactive_metadata$data$seurat_clusters
+        ),
+        FUN = \(i) {
+          print(i)
+          out_id <- stringr::str_c("deg_", i)
+          deg_cluster <- degs$data[degs$data$cluster == as.character(i), ]
+          deg_cluster[, sapply(deg_cluster, is.numeric)] <- round(deg_cluster[, sapply(deg_cluster, is.numeric)], 8)
+          # output[[out_id]] <- renderPrint(head(degs$data[degs$data$cluster == as.character(i),]))
+          return(bslib::accordion_panel(
+            stringr::str_c("Genes identifying cluster ", i, ":"),
+            # shiny::verbatimTextOutput(out_id),
+            DT::renderDataTable(
+              DT::datatable(
+                deg_cluster,
+                caption = stringr::str_c("Cluster ", i),
+                fillContainer = F,
+                width = "100%"
+              )
+            ),
+            icon = bsicons::bs_icon("table")
+            # icon = bsicons::bs_icon("sign-intersection-fill")
+          ))
+        }
+      )
       bslib::accordion(
         !!!panels,
         id = "deg_accordion",
@@ -929,8 +935,16 @@ SeuratObjectMaker <- function(
     # })
 
     output$metadata_filtered <- DT::renderDataTable({
-      shinyjs::logjs(reactive_sobj$data@meta.data %>% dim())
-      shinyjs::logjs(reactive_metadata$data %>% dim())
+      shinyjs::logjs(
+        dim(
+          reactive_sobj$data@meta.data
+        )
+      )
+      shinyjs::logjs(
+        dim(
+          reactive_metadata$data
+        )
+      )
       DT::datatable(
         reactive_sobj$data@meta.data,
         caption = "Metadata",
@@ -957,7 +971,7 @@ SeuratObjectMaker <- function(
         stringr::str_c("SOM_output_DEGs_", Sys.Date(), ".csv")
       },
       content = function(filename) {
-        degs$data %>% write.csv(filename)
+        write.table(x = degs$data, file = filename)
       }
     )
   }
