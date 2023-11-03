@@ -965,7 +965,6 @@ server <- function(input, output, session) {
       degs$data %>% write.csv(filename)
     }
   )
-
 }
 
 shinyApp(ui, server)

@@ -18,7 +18,7 @@ SeuratObjectMaker <- function(
         version = 5
       ),
       title = "Seurat Object Maker",
-      fillable = F,
+      fillable = FALSE,
       sidebar = bslib::sidebar(
         shiny::conditionalPanel(
           "input.nav === 'load_data'",
@@ -54,7 +54,8 @@ SeuratObjectMaker <- function(
           )
         ),
         shiny::uiOutput(outputId = "dataobject"),
-        fillable = T,
+        fillable = TRUE,
+        open = "closed",
         position = "right"
       ),
       bslib::nav_panel(
@@ -136,6 +137,19 @@ SeuratObjectMaker <- function(
             )
           ),
           shiny::uiOutput(outputId = "qc_UI"),
+          shiny::markdown(
+            mds = c(
+              "### Percent mitochondrial genes vs. number of transcripts"
+            )
+          ),
+          htmltools::div(
+            style = "display: flex; justify-content: center;",
+            htmltools::div(
+              style = "width: 50%",
+              plotly::plotlyOutput("perc_mt_scatter"),
+              shiny::verbatimTextOutput("foo")
+            )
+          ),
           # bslib::layout_column_wrap(
           #   width = 4,
           shiny::uiOutput(outputId = "filtering_thresholds"),
@@ -339,7 +353,7 @@ SeuratObjectMaker <- function(
     # Variable setup
     ################################################################################
 
-    somaker_dataobject <- reactiveValues(
+    somaker_dataobject <- shiny::reactiveValues(
       selected_directory = character(0),
       is_valid_directory = FALSE,
       is_valid_data = FALSE,
@@ -347,6 +361,7 @@ SeuratObjectMaker <- function(
       nCount_RNA_high = 600,
       nFeature_RNA_high = 600,
       nFeature_RNA_low = 200,
+      percent_mt_low = 0,
       percent_mt_high = 20,
       columns_to_filter = list(
         "nCount_RNA",
@@ -355,8 +370,8 @@ SeuratObjectMaker <- function(
     )
 
     # reactive_metadata <- reactiveValues(data = data.frame())
-    reactive_metadata <- reactiveValues(data = SeuratObject::pbmc_small[[]])
-    reactive_sobj <- reactiveValues(data = SeuratObject::pbmc_small)
+    reactive_metadata <- shiny::reactiveValues(data = SeuratObject::pbmc_small[[]])
+    reactive_sobj <- shiny::reactiveValues(data = SeuratObject::pbmc_small)
 
     bslib::nav_hide(id = "nav", target = "filtering")
     bslib::nav_hide(id = "nav", target = "results")
@@ -369,13 +384,13 @@ SeuratObjectMaker <- function(
     # Sidebar
     ################################################################################
 
-    output$nav_now <- renderText(input$nav)
+    output$nav_now <- shiny::renderText(input$nav)
 
     output$dataobject <- shiny::renderUI({
-      bar <- reactiveValuesToList(somaker_dataobject)
-      result <- tagList(tags$h3("Data object"))
+      bar <- shiny::reactiveValuesToList(somaker_dataobject)
+      result <- htmltools::tagList(tags$h3("Data object"))
       for (i in seq_along(bar)) {
-        result <- tagList(
+        result <- htmltools::tagList(
           result,
           tags$h6(names(bar)[i]),
           tags$p(bar[[i]])
@@ -388,7 +403,11 @@ SeuratObjectMaker <- function(
     # Load data tab
     ################################################################################
 
-    volumes <- c(Home = getwd(), "R Installation" = R.home(), shinyFiles::getVolumes()()) # TODO: change back to fs::path_home() when done testing
+    volumes <- c(
+      Home = getwd(),
+      "R Installation" = R.home(),
+      shinyFiles::getVolumes()()
+    ) # TODO: change back to fs::path_home() when done testing
 
     withr::with_options(
       new = list(shiny.maxRequestSize = 900 * 1024^2), # 900 MB limit
@@ -402,21 +421,43 @@ SeuratObjectMaker <- function(
       )
     )
 
+
+
+    reactive_features <- shiny::reactiveValues(
+      data = SeuratObject::pbmc_small[[]]
+    )
+
     # Validate and store the selected directory
     shiny::observeEvent(input$directory, {
       if (!is.integer(input$directory)) {
         selected_directory <- shinyFiles::parseDirPath(volumes, input$directory)
         somaker_dataobject$selected_directory <- selected_directory
         if (length(somaker_dataobject$selected_directory) > 0) {
-          is_valid_dir <- validate_directory(somaker_dataobject$selected_directory)
-          somaker_dataobject$is_valid_directory <- is_valid_dir
+          is_valid_dir <- validate_directory(
+            somaker_dataobject$selected_directory
+          )
           if (is_valid_dir) {
+            filenames <- c("features.tsv", "genes.tsv")
+            for (suffix in c("", ".gz")) {
+              for (fn in stringr::str_c(filenames, suffix)) {
+                if (file.exists(
+                  file.path(somaker_dataobject$selected_directory, fn)
+                )) {
+                  reactive_features$data <- data.table::fread(
+                    file = file.path(somaker_dataobject$selected_directory, fn),
+                    header = FALSE,
+                    nrows = 5
+                  )
+                }
+              }
+            }
             shinyjs::hide("dir_invalid_UI")
             shinyjs::show("dir_valid_UI")
           } else {
             shinyjs::hide("dir_valid_UI")
             shinyjs::show("dir_invalid_UI")
           }
+          somaker_dataobject$is_valid_directory <- is_valid_dir
         } else {
           shinyjs::hide("dir_valid_UI")
           shinyjs::hide("dir_invalid_UI")
@@ -436,11 +477,59 @@ SeuratObjectMaker <- function(
       }
     )
 
+    output$features_tsv <- DT::renderDataTable({
+      if (somaker_dataobject$is_valid_directory) {
+        return(DT::datatable(
+          reactive_features$data,
+          options = list(
+            dom = "t"
+          )
+        ))
+      }
+    })
+
+    output$feature_column_selection <- shiny::renderUI({
+      if (somaker_dataobject$is_valid_directory) {
+        if (shiny::is.reactivevalues(reactive_features) &
+          !is.null(reactive_features$data)
+        ) {
+          return(
+            shiny::radioButtons(
+              inputId = "feat_radiobuttons",
+              label = shiny::markdown(stringr::str_c(
+                "Select which column contains the gene names:"
+              )),
+              choices = colnames(reactive_features$data),
+              selected = colnames(reactive_features$data)[2],
+              inline = TRUE
+            )
+          )
+        }
+      }
+    })
+
     output$dir_valid_UI <- shiny::renderUI({
       htmltools::div(
         shiny::markdown(stringr::str_c(
           "`", somaker_dataobject$selected_directory, "`",
           " is a valid count matrix directory.\n\n",
+          "Feature file has these columns:"
+        )),
+        htmltools::br(),
+        htmltools::div(
+          style = "display: flex; justify-content: center;",
+          htmltools::div(
+            DT::dataTableOutput("features_tsv"),
+            style = "width: 60%"
+          ),
+          bslib::layout_column_wrap(
+            # width = 6,
+            width = "50px",
+            shiny::uiOutput("feature_column_selection"),
+          )
+        ),
+        htmltools::br(),
+        shiny::markdown(stringr::str_c(
           "Press button below to load the data into `Seurat`."
         )),
         htmltools::div(
@@ -469,12 +558,18 @@ SeuratObjectMaker <- function(
     shinyjs::onclick("load_into_seurat",
       expr = {
         shinyjs::disable("load_into_seurat")
-        start_time <- Sys.time()
         load_time <- system.time(
           shinycssloaders::showPageSpinner(
             type = 6,
             expr = {
-              sobj_data <- read_data(somaker_dataobject$selected_directory)
+              gene_column <- which(
+                colnames(reactive_features$data) == input$feat_radiobuttons
+              )
+              shinyjs::logjs(gene_column)
+              sobj_data <- read_data(
+                somaker_dataobject$selected_directory,
+                gene_column = gene_column
+              )
               sobj <- make_seurat_object(sobj_data)
             },
             caption = htmltools::HTML(
@@ -483,19 +578,19 @@ SeuratObjectMaker <- function(
             )
           )
         )
-        end_time <- Sys.time()
-        print(end_time - start_time)
         print(load_time["elapsed"])
-        somaker_dataobject$is_valid_data <- TRUE
+        if (!is.null(sobj)) {
+          somaker_dataobject$is_valid_data <- TRUE
+        }
       }
     )
 
-    output$sobj_out <- renderPrint({
+    output$sobj_out <- shiny::renderPrint({
       reactive_sobj$data
     })
 
     shiny::observeEvent(somaker_dataobject$is_valid_data, {
-      req(somaker_dataobject$is_valid_data)
+      shiny::req(somaker_dataobject$is_valid_data)
       # if (somaker_dataobject$is_valid_data == TRUE) {
       reactive_metadata$data <- sobj[[]]
       reactive_sobj$data <- sobj
@@ -527,16 +622,11 @@ SeuratObjectMaker <- function(
 
     shinyjs::onclick("start_processing",
       expr = {
-        # shinyjs::alert("will move to Filtering tab")
-        # shiny::hideTab(inputId = "nav", target = "load_data")
-        # showTab(inputId = "nav", target = "filtering")
-        # updateTabsetPanel(inputId = "nav", selected = "filtering")
         bslib::nav_hide(id = "nav", target = "load_data")
         bslib::nav_show(id = "nav", target = "filtering")
         bslib::nav_select(id = "nav", selected = "filtering")
         for (column in colnames(reactive_metadata$data)) {
           if (is.numeric(reactive_metadata$data[[column]])) {
-            # print(column)
             values <- as.vector(
               round(
                 stats::quantile(
@@ -547,7 +637,6 @@ SeuratObjectMaker <- function(
             )
             # slider_input_vals[[column]] <- values
             if (values[1] != values[2]) {
-              # print(column)
               if (!column %in% somaker_dataobject$columns_to_filter) {
                 somaker_dataobject$columns_to_filter <- c(
                   somaker_dataobject$columns_to_filter,
@@ -564,20 +653,14 @@ SeuratObjectMaker <- function(
                 metadata = reactive_metadata,
                 start_values = values
               )
-              # print(class(shiny::isolate(slider_input_vals[[column]]())))
-              # somaker_dataobject[[stringr::str_c(column, "_low")]] <- slider_input_vals[[column]]
-              # somaker_dataobject[[stringr::str_c(column, "_low")]] <- slider_input_vals[[column]]()[1]
-              # somaker_dataobject[[stringr::str_c(column, "_high")]] <- slider_input_vals[[column]]()[2]
             }
           }
           somaker_dataobject$original_n_cells <- nrow(reactive_metadata$data)
-          # print(column)
           output$qc_UI <- shiny::renderUI({
             tagList(
               lapply(
                 somaker_dataobject$columns_to_filter,
                 FUN = \(column) {
-                  # print(column)
                   qc_module_UI(stringr::str_c("qc_", column))
                 }
               )
@@ -592,10 +675,10 @@ SeuratObjectMaker <- function(
     # Filtering tab
     ################################################################################
 
-    output$original_n_cells <- renderText({
+    output$original_n_cells <- shiny::renderText({
       nrow(reactive_metadata$data[, ])
     })
-    output$filtered_n_cells <- renderText({
+    output$filtered_n_cells <- shiny::renderText({
       if (somaker_dataobject$is_valid_data) {
         cell_filters <- list()
         for (column in somaker_dataobject$columns_to_filter) {
@@ -624,6 +707,7 @@ SeuratObjectMaker <- function(
       }
     })
 
+
     output$confirm_filtering_UI <- shiny::renderUI({
       htmltools::div(
         # shiny::markdown("Data loaded correctly:"),
@@ -647,6 +731,75 @@ SeuratObjectMaker <- function(
       )
     })
 
+    wait_for_scatter_plot <- shiny::reactiveVal(FALSE)
+
+    output$perc_mt_scatter <- plotly::renderPlotly({
+      # shiny::req(reactive_metadata$data)
+      # colours <- shiny::reactive({
+      #   ifelse(
+      #     reactive_metadata$data$percent_mt >=
+      #       input$`qc_percent_mt-qc_slide-slider`[1] &
+      #       reactive_metadata$data$percent_mt <=
+      #         input$`qc_percent_mt-qc_slide-slider`[2],
+      #     "red", "blue"
+      #   )
+      # })
+      p <- plotly::plot_ly(
+        data = reactive_metadata$data,
+        x = ~nCount_RNA,
+        y = ~percent_mt,
+        type = "scatter",
+        customdata = ~ rownames(reactive_metadata$data),
+        source = "perc_mt_plot",
+        mode = "markers",
+        # color = ~ colours(),
+        # colors = "identity",
+        name = "perc_mt_vs_ncount_rna" # ,
+        # x0 = col
+      )
+      # plotly::event_register(p, "plotly_selected")
+      # removing lasso selection for now, not compatible with the mental model
+      # from the violin plots and already set up info boxes for the min/max
+      # values per metadata
+      plotly::config(p, modeBarButtonsToRemove = list("lasso2d"))
+      # wait_for_scatter_plot(TRUE)
+      plotly::layout(
+        p = p,
+        yaxis = list(zeroline = F),
+        dragmode = "select"
+      )
+    })
+
+    output$foo <- shiny::renderPrint({
+      # shiny::req(wait_for_scatter_plot)
+      # if (wait_for_scatter_plot() == TRUE) {
+      event_data <- plotly::event_data(
+        "plotly_selected",
+        source = "perc_mt_plot"
+      )
+      # c(
+      #   "x: ", min(event_data$x), max(event_data$x),
+      #   "y: ", min(event_data$y), max(event_data$y)
+      # )
+      print(slider_input_vals[["percent_mt"]]())
+      if (!is.null(event_data)) {
+        df <- reactive_metadata$data[event_data$customdata, ]
+        y_min <- min(event_data$y)
+        y_max <- max(event_data$y)
+        print(dim(df))
+        # slider_input_vals$percent_mt <<- range(y_min, y_max)
+        print(slider_input_vals[["percent_mt"]]())
+        shiny::updateSliderInput(
+          session,
+          inputId = "qc_percent_mt-qc_slide-slider",
+          value = range(y_min, y_max)
+        )
+        print(head(df))
+        print(head(event_data))
+      }
+      # }
+    })
+
     output$filtering_thresholds <- shiny::renderUI({
       if (somaker_dataobject$is_valid_data) {
         cell_filters <- list()
@@ -654,45 +807,48 @@ SeuratObjectMaker <- function(
           if (length(slider_input_vals[[column]]()) > 1) {
             cell_filters <- c(
               cell_filters,
-              list(reactive_metadata$data[[column]] >= slider_input_vals[[column]]()[1])
+              list(
+                reactive_metadata$data[[column]] >=
+                  slider_input_vals[[column]]()[1]
+              )
             )
           }
           cell_filters <- c(
             cell_filters,
-            list(reactive_metadata$data[[column]] <= slider_input_vals[[column]]()[2])
+            list(
+              reactive_metadata$data[[column]] <=
+                slider_input_vals[[column]]()[2]
+            )
           )
         }
-        # print(cell_filters)
         master_filter <- Reduce(`&`, cell_filters)
 
-        # return( # tagList(
-        # bslib::layout_column_wrap(
-        #   width = 4,
-
-        # to_return <- list()
-        to_return <- tagList()
+        to_return <- htmltools::tagList()
         j <- 1
         for (i in seq_len(length(somaker_dataobject$columns_to_filter))) {
           if (length(slider_input_vals[[
             somaker_dataobject$columns_to_filter[[i]]
           ]]()) > 1) {
             to_return[[j]] <- bslib::value_box(
-              # title = somaker_dataobject$columns_to_filter[[i]],
               title = shiny::markdown(stringr::str_c(
                 "**", somaker_dataobject$columns_to_filter[[i]], "_low", "**"
               )),
-              value = slider_input_vals[[somaker_dataobject$columns_to_filter[[i]]]]()[1],
+              value = slider_input_vals[[
+                somaker_dataobject$columns_to_filter[[i]]
+              ]]()[1],
               showcase = bsicons::bs_icon("filter-left"),
-              theme_color = "secondary"
+              theme_color = "primary"
+              # theme_color = "secondary"
             )
             j <- j + 1
           }
           to_return[[j]] <- bslib::value_box(
-            # title = somaker_dataobject$columns_to_filter[[i]],
             title = shiny::markdown(stringr::str_c(
               "**", somaker_dataobject$columns_to_filter[[i]], "_high", "**"
             )),
-            value = slider_input_vals[[somaker_dataobject$columns_to_filter[[i]]]]()[2],
+            value = slider_input_vals[[
+              somaker_dataobject$columns_to_filter[[i]]
+            ]]()[2],
             showcase = bsicons::bs_icon("filter-right"),
             theme_color = "primary"
           )
@@ -700,13 +856,11 @@ SeuratObjectMaker <- function(
         }
 
         return(
-          tagList(
+          htmltools::tagList(
             bslib::layout_column_wrap(
               width = "240px",
-              # width = .25,
               !!!to_return,
               heights_equal = "all",
-              # fixed_width = TRUE,
               fill = TRUE
             ),
             bslib::layout_column_wrap(
@@ -714,19 +868,16 @@ SeuratObjectMaker <- function(
               bslib::value_box(
                 title = "Original number of cells",
                 value = nrow(reactive_metadata$data),
-                # value = shiny::textOutput(outputId = "original_n_cells"),
                 showcase = bsicons::bs_icon("clipboard-data"),
                 theme_color = "success"
               ),
               bslib::value_box(
                 title = "Number of cells left after filtering",
                 value = nrow(reactive_metadata$data[master_filter, ]),
-                # value = shiny::textOutput(outputId = "filtered_n_cells"),
                 showcase = bsicons::bs_icon("receipt-cutoff"),
                 theme_color = "warning"
               ),
               heights_equal = "all",
-              # fixed_width = TRUE,
               fill = TRUE
             )
           )
@@ -745,11 +896,10 @@ SeuratObjectMaker <- function(
         # style = 'bootstrap'
       )
     })
-    # print(session$clientData)
 
-    ################################################################################
+    ############################################################################
     # Results tab
-    ################################################################################
+    ############################################################################
 
     shinyjs::onclick("confirm_filtering",
       expr = {
@@ -764,9 +914,6 @@ SeuratObjectMaker <- function(
         ## NB: duplicated code, here be dragons
         cell_filters <- list()
         for (column in somaker_dataobject$columns_to_filter) {
-          # print(column)
-          # reactive_metadata$data[[column]] %>% head %>% print
-          # slider_input_vals[[column]]()[1] %>% print
           ## TODO: more reasonable check for type of column.
           ## Should probably have a better data model for filterable columns.
           ## E.g. "Is it supposed to only have an upper cutoff? Or a lower? Or both?"
@@ -775,12 +922,18 @@ SeuratObjectMaker <- function(
           if (length(slider_input_vals[[column]]()) > 1) {
             cell_filters <- c(
               cell_filters,
-              list(reactive_metadata$data[[column]] >= slider_input_vals[[column]]()[1])
+              list(
+                reactive_metadata$data[[column]] >=
+                  slider_input_vals[[column]]()[1]
+              )
             )
           }
           cell_filters <- c(
             cell_filters,
-            list(reactive_metadata$data[[column]] <= slider_input_vals[[column]]()[2])
+            list(
+              reactive_metadata$data[[column]] <=
+                slider_input_vals[[column]]()[2]
+            )
           )
         }
         # print(cell_filters)
@@ -814,7 +967,7 @@ SeuratObjectMaker <- function(
           type = 6,
           expr = {
             reactive_sobj$data <- process_seurat_object(reactive_sobj$data)
-            degs <- reactiveValues(data = find_degs(reactive_sobj$data))
+            degs <- shiny::reactiveValues(data = find_degs(reactive_sobj$data))
           },
           caption = htmltools::HTML(
             "Processing data, hold on..",
@@ -827,7 +980,7 @@ SeuratObjectMaker <- function(
     )
 
     output$results_violin_plots <- shiny::renderUI({
-      to_return <- tagList()
+      to_return <- htmltools::tagList()
       for (i in seq_len(length(somaker_dataobject$columns_to_filter))) {
         violin_plot_server(
           stringr::str_c("vln_", somaker_dataobject$columns_to_filter[[i]]),
@@ -848,26 +1001,26 @@ SeuratObjectMaker <- function(
       return(to_return)
     })
 
-    output$elbow_plot <- renderPlot({
+    output$elbow_plot <- shiny::renderPlot({
       Seurat::ElbowPlot(reactive_sobj$data)
     })
 
-    output$hvg_plot_unlabelled <- renderPlot({
+    output$hvg_plot_unlabelled <- shiny::renderPlot({
       top10 <- head(Seurat::VariableFeatures(reactive_sobj$data), 10)
       return(Seurat::VariableFeaturePlot(reactive_sobj$data))
     })
-    output$hvg_plot_labelled <- renderPlot({
+    output$hvg_plot_labelled <- shiny::renderPlot({
       top10 <- head(Seurat::VariableFeatures(reactive_sobj$data), 10)
       plot1 <- Seurat::VariableFeaturePlot(reactive_sobj$data)
       plot2 <- Seurat::LabelPoints(plot = plot1, points = top10, repel = TRUE)
       return(plot2)
     })
 
-    output$pca_plot <- renderPlot({
+    output$pca_plot <- shiny::renderPlot({
       Seurat::DimPlot(reactive_sobj$data, reduction = "pca", group.by = "orig.ident")
     })
 
-    output$umap_plot <- renderPlot({
+    output$umap_plot <- shiny::renderPlot({
       Seurat::DimPlot(reactive_sobj$data, reduction = "umap", group.by = "seurat_clusters")
     })
 
@@ -894,7 +1047,7 @@ SeuratObjectMaker <- function(
               DT::datatable(
                 deg_cluster,
                 caption = stringr::str_c("Cluster ", i),
-                fillContainer = F,
+                fillContainer = FALSE,
                 width = "100%"
               )
             ),

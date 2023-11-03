@@ -17,7 +17,7 @@ qc_slider_server <- function(id, col, metadata, start_values) {
 
   shiny::moduleServer(id, function(input, output, session) {
     update_it <- shiny::reactiveVal(0)
-    observe({
+    shiny::observe({
       if (shiny::isolate(update_it()) < 3) {
         shiny::isolate(update_it(update_it() + 1))
       }

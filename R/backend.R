@@ -6,17 +6,41 @@ detect_features_format <- function(features) {
   #   e.g. if line starts with "ENS", that is probably a geneID column
 }
 
-mat_files <- c(
-  "matrix.mtx",
-  "features.tsv",
-  "barcodes.tsv"
-)
 
 check_files <- function(directory, suffix) {
-  return(all(as.logical(lapply(
-    file.path(directory, stringr::str_c(mat_files, suffix)),
-    file.exists
-  ))))
+  feature_files <- c(
+    "features.tsv",
+    "genes.tsv"
+  )
+  mat_files <- c(
+    "matrix.mtx",
+    "barcodes.tsv"
+  )
+
+  if (
+    !any(as.logical(
+      lapply(
+        file.path(
+          directory,
+          stringr::str_c(
+            feature_files, suffix
+          )
+        ),
+        file.exists
+      )
+    ))
+  ) {
+    return(FALSE)
+  } else {
+    return(
+      all(as.logical(
+        lapply(
+          file.path(directory, stringr::str_c(mat_files, suffix)),
+          file.exists
+        )
+      ))
+    )
+  }
 }
 
 
@@ -24,7 +48,6 @@ validate_directory <- function(directory) {
   if (!dir.exists(directory)) {
     return(FALSE)
   }
-  # TODO: add check for cellranger v2 `genes.tsv` as well
   if (!check_files(directory, ".gz")) {
     if (!check_files(directory, "")) {
       return(FALSE)
@@ -36,11 +59,13 @@ validate_directory <- function(directory) {
 
 read_data <- function(
     chosen_folder,
-    project_name = "shiny") {
-  print(chosen_folder)
-  # read in features file to see what structure it has, and what column is the gene name column
-  # and set below accordingly
-  so_data <- Seurat::Read10X(chosen_folder, cell.column = NULL, gene.column = 1)
+    cell_column = NULL,
+    gene_column = 2) {
+  so_data <- Seurat::Read10X(
+    chosen_folder,
+    cell.column = cell_column,
+    gene.column = gene_column
+  )
   # handle the case of e.g. CITE-seq, where there are multiple assays.
   # pick out only the RNA assay for now
   if (class(so_data) == "list") {
@@ -54,46 +79,101 @@ read_data <- function(
       )
     ]]
   }
-  # so <- CreateSeuratObject(so_data, project = project_name)
   return(so_data)
 }
 
 make_seurat_object <- function(
-    data_matrix) {
+    data_matrix,
+    project_name = "SOM") {
   # print("Dimensions of data uploaded:")
   # print(dim(data_matrix))
-  sobj <- Seurat::CreateSeuratObject(counts = data_matrix, project = "SOM") # , min.cells = 3, min.features = 200)
-  # print(sobj)
-  sobj[["percent_mt"]] <- Seurat::PercentageFeatureSet(sobj, pattern = "^(MT)|(mt)")
+  sobj <- Seurat::CreateSeuratObject(
+    counts = data_matrix,
+    project = project_name
+  )
+  # , min.cells = 3, min.features = 200)
+  sobj[["percent_mt"]] <- Seurat::PercentageFeatureSet(
+    sobj,
+    pattern = "^(MT-)|^(mt-)"
+  )
   return(sobj)
 }
 
-process_seurat_object <- function(seurat_object) {
-  # shinyjs::logjs(seurat_object)
+process_seurat_object <- function(
+    seurat_object,
+    filtering_thresholds = list()) {
+  params <- list(
+    scale_factor = 10e3,
+    normalization_method = "LogNormalize",
+    n_hvgs = 2e3,
+    clustering_resolution = 0.8,
+    n_pcs_to_use = 15,
+    features_for_scaling = "hvgs" # c("all", "hvgs")
+  )
 
   print("Normalising data..")
   shinyjs::logjs("Normalising data..")
-  seurat_object <- Seurat::NormalizeData(object = seurat_object, verbose = FALSE)
-  n_hvgs <- 2e3
-  if (length(Seurat::Cells(seurat_object)) < 2e3) n_hvgs <- length(Seurat::Cells(seurat_object)) * 0.4
+  seurat_object <- Seurat::NormalizeData(
+    object = seurat_object,
+    verbose = FALSE
+  )
+  n_hvgs <- params$n_hvgs
+
   print("Finding HVGs..")
   shinyjs::logjs("Finding HVGs..")
-  seurat_object <- Seurat::FindVariableFeatures(object = seurat_object, nfeatures = n_hvgs, verbose = FALSE)
+  if (length(Seurat::Cells(seurat_object)) < params$n_hvgs) {
+    n_hvgs <- length(Seurat::Cells(seurat_object)) * 0.4
+  }
+  seurat_object <- Seurat::FindVariableFeatures(
+    object = seurat_object,
+    nfeatures = n_hvgs,
+    verbose = FALSE
+  )
+
   print("Scaling data..")
   shinyjs::logjs("Scaling data..")
-  seurat_object <- Seurat::ScaleData(object = seurat_object, verbose = FALSE)
+  if (params$features_for_scaling == "all") {
+    features <- rownames(seurat_object)
+  } else if (params$features_for_scaling == "hvgs") {
+    features <- Seurat::VariableFeatures(seurat_object)
+  }
+  seurat_object <- Seurat::ScaleData(
+    object = seurat_object,
+    features = features,
+    verbose = FALSE
+  )
+
   print("Calculating PCA..")
   shinyjs::logjs("Calculating PCA..")
-  seurat_object <- Seurat::RunPCA(object = seurat_object, verbose = FALSE)
+  seurat_object <- Seurat::RunPCA(
+    object = seurat_object,
+    features = features,
+    verbose = FALSE
+  )
+
   print("Finding neighbours..")
   shinyjs::logjs("Finding neighbours..")
-  seurat_object <- Seurat::FindNeighbors(object = seurat_object, verbose = FALSE)
+  seurat_object <- Seurat::FindNeighbors(
+    object = seurat_object,
+    dims = 1:params$n_pcs_to_use,
+    verbose = FALSE
+  )
+
   print("Clustering..")
   shinyjs::logjs("Clustering..")
-  seurat_object <- Seurat::FindClusters(object = seurat_object, verbose = FALSE)
+  seurat_object <- Seurat::FindClusters(
+    object = seurat_object,
+    resolution = params$clustering_resolution,
+    verbose = FALSE
+  )
+
   print("Running UMAP..")
   shinyjs::logjs("Running UMAP..")
-  seurat_object <- Seurat::RunUMAP(object = seurat_object, dims = 1:10, verbose = FALSE)
+  seurat_object <- Seurat::RunUMAP(
+    object = seurat_object,
+    dims = 1:params$n_pcs_to_use,
+    verbose = FALSE
+  )
 
   return(seurat_object)
 }

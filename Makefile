@@ -37,7 +37,7 @@ lint:
 	R --quiet -e "styler::style_dir(path=\".\", dry = \"on\")"
 
 format_code:
-	R --quiet -e "styler::style_dir(path=\".\")"
+	R --quiet -e "styler::style_pkg()"
 
 download_example_data:
 	Rscript pbmc_small_download.R
