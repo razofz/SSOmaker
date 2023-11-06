@@ -55,7 +55,7 @@ qc_plot_server <- function(id, col, metadata, ranges) {
     #   print(ranges())
     # })
     output$output <- shiny::renderUI({
-      tagList(
+      htmltools::tagList(
         # output$foo <- renderText(ranges()),
         # textOutput(ranges()),
         plotly::renderPlotly({

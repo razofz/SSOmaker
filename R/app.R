@@ -126,11 +126,6 @@ SeuratObjectMaker <- function(
               theme_color = "warning"
             )
           ),
-          # ) |>
-          #   popover(
-          #     "Tooltip text",
-          #     title = "Help"
-          #   ),
           shiny::markdown(
             mds = c(
               "### Violin plots of basic characteristics"
@@ -144,10 +139,24 @@ SeuratObjectMaker <- function(
           ),
           htmltools::div(
             style = "display: flex; justify-content: center;",
+            bslib::tooltip(
+              htmltools::span(
+                shiny::helpText("Current limitations of this plot "),
+                bsicons::bs_icon("info-circle")
+              ),
+              stringr::str_c(
+                "For the moment the selection done in this plot does ",
+                "not update the sliders for the violin plots above. ",
+                "Nevertheless, the selection will affect the final filtering. ",
+                "The narrowest filtering thresholds will be used."
+              )
+            )
+          ),
+          htmltools::div(
+            style = "display: flex; justify-content: center;",
             htmltools::div(
               style = "width: 50%",
-              plotly::plotlyOutput("perc_mt_scatter"),
-              shiny::verbatimTextOutput("foo")
+              plotly::plotlyOutput("perc_mt_scatter") # ,
             )
           ),
           # bslib::layout_column_wrap(
@@ -183,6 +192,8 @@ SeuratObjectMaker <- function(
           )
         ),
         shiny::markdown(stringr::str_c("## QC results")),
+        htmltools::br(),
+        shiny::uiOutput("final_n_cells"),
         htmltools::br(),
         htmltools::h3("Distribution of metadata columns post filtering"),
         bslib::layout_column_wrap(
@@ -494,14 +505,16 @@ SeuratObjectMaker <- function(
           !is.null(reactive_features$data)
         ) {
           return(
-            shiny::radioButtons(
-              inputId = "feat_radiobuttons",
-              label = shiny::markdown(stringr::str_c(
-                "Select which column contains the gene names:"
-              )),
-              choices = colnames(reactive_features$data),
-              selected = colnames(reactive_features$data)[2],
-              inline = TRUE
+            htmltools::tagList(
+              shiny::radioButtons(
+                inputId = "feat_radiobuttons",
+                label = shiny::markdown(stringr::str_c(
+                  "Select which column contains the gene names:"
+                )),
+                choices = colnames(reactive_features$data),
+                selected = colnames(reactive_features$data)[2],
+                inline = TRUE
+              )
             )
           )
         }
@@ -510,23 +523,32 @@ SeuratObjectMaker <- function(
 
     output$dir_valid_UI <- shiny::renderUI({
       htmltools::div(
-        shiny::markdown(stringr::str_c(
-          "`", somaker_dataobject$selected_directory, "`",
-          " is a valid count matrix directory.\n\n",
-          "Feature file has these columns:"
-        )),
+        htmltools::p(
+          shiny::markdown(
+            stringr::str_c(
+              "`", somaker_dataobject$selected_directory, "`",
+              " is a valid count matrix directory."
+            )
+          )
+        ),
         htmltools::br(),
         htmltools::div(
           style = "display: flex; justify-content: center;",
-          htmltools::div(
-            DT::dataTableOutput("features_tsv"),
+          bslib::card(
+            bslib::card_header("Feature file has these columns:"),
+            htmltools::div(
+              DT::dataTableOutput("features_tsv"),
+              # style = "width: 60%"
+            ),
+            # ),
+            # htmltools::div(
+            #   style = "display: flex; justify-content: center;",
+            htmltools::div(
+              shiny::uiOutput("feature_column_selection"),
+              # style = "width: 60%"
+            ),
             style = "width: 60%"
           ),
-          bslib::layout_column_wrap(
-            # width = 6,
-            width = "50px",
-            shiny::uiOutput("feature_column_selection"),
-          )
         ),
         htmltools::br(),
         shiny::markdown(stringr::str_c(
@@ -657,7 +679,7 @@ SeuratObjectMaker <- function(
           }
           somaker_dataobject$original_n_cells <- nrow(reactive_metadata$data)
           output$qc_UI <- shiny::renderUI({
-            tagList(
+            htmltools::tagList(
               lapply(
                 somaker_dataobject$columns_to_filter,
                 FUN = \(column) {
@@ -731,7 +753,7 @@ SeuratObjectMaker <- function(
       )
     })
 
-    wait_for_scatter_plot <- shiny::reactiveVal(FALSE)
+    # event_data <- shiny::reactiveVal(0)
 
     output$perc_mt_scatter <- plotly::renderPlotly({
       # shiny::req(reactive_metadata$data)
@@ -762,43 +784,45 @@ SeuratObjectMaker <- function(
       # from the violin plots and already set up info boxes for the min/max
       # values per metadata
       plotly::config(p, modeBarButtonsToRemove = list("lasso2d"))
-      # wait_for_scatter_plot(TRUE)
+
+      # this chunk is probably better to have in another place,
+      # having it here resulted in extremely long response times in the UI
+      # results <- plotly::event_data(
+      #     "plotly_selected",
+      #     source = "perc_mt_plot"
+      #   )
+      # event_data(results)
+
+      # if (!is.null(shiny::isolate(event_data())$y)) {
+      # # if (max(event_data()$y) != Inf & min(event_data()$y) != -Inf) {
+      #   y_min <- min(event_data()$y)
+      #   y_max <- max(event_data()$y)
+      #   shiny::updateSliderInput(
+      #     session,
+      #     inputId = "qc_percent_mt-qc_slide-slider",
+      #     value = range(y_min, y_max)
+      #   )
+      # }
+
       plotly::layout(
         p = p,
-        yaxis = list(zeroline = F),
+        yaxis = list(zeroline = FALSE),
         dragmode = "select"
       )
     })
 
-    output$foo <- shiny::renderPrint({
-      # shiny::req(wait_for_scatter_plot)
-      # if (wait_for_scatter_plot() == TRUE) {
-      event_data <- plotly::event_data(
-        "plotly_selected",
-        source = "perc_mt_plot"
-      )
-      # c(
-      #   "x: ", min(event_data$x), max(event_data$x),
-      #   "y: ", min(event_data$y), max(event_data$y)
-      # )
-      print(slider_input_vals[["percent_mt"]]())
-      if (!is.null(event_data)) {
-        df <- reactive_metadata$data[event_data$customdata, ]
-        y_min <- min(event_data$y)
-        y_max <- max(event_data$y)
-        print(dim(df))
-        # slider_input_vals$percent_mt <<- range(y_min, y_max)
-        print(slider_input_vals[["percent_mt"]]())
-        shiny::updateSliderInput(
-          session,
-          inputId = "qc_percent_mt-qc_slide-slider",
-          value = range(y_min, y_max)
-        )
-        print(head(df))
-        print(head(event_data))
-      }
-      # }
-    })
+    # output$foo <- shiny::renderPrint({
+    #   # shiny::req(wait_for_scatter_plot)
+    #   # if (wait_for_scatter_plot() == TRUE) {
+    #   if (!is.null(event_data())) {
+    #     df <- reactive_metadata$data[event_data()$customdata, ]
+    #     print(dim(df))
+    #     # slider_input_vals$percent_mt <<- range(y_min, y_max)
+    #     print(head(df))
+    #     print(head(event_data()))
+    #   }
+    #   # }
+    # })
 
     output$filtering_thresholds <- shiny::renderUI({
       if (somaker_dataobject$is_valid_data) {
@@ -821,34 +845,99 @@ SeuratObjectMaker <- function(
             )
           )
         }
+        results <- plotly::event_data(
+          "plotly_selected",
+          source = "perc_mt_plot"
+        )
+        if (!is.null(results$y)) {
+          cell_filters <- c(
+            cell_filters,
+            list(
+              reactive_metadata$data[["percent_mt"]] <=
+                max(results$y)
+            ),
+            list(
+              reactive_metadata$data[["percent_mt"]] >=
+                min(results$y)
+            ),
+            list(
+              reactive_metadata$data[["nCount_RNA"]] <=
+                max(results$x)
+            ),
+            list(
+              reactive_metadata$data[["nCount_RNA"]] >=
+                min(results$x)
+            )
+          )
+        }
+
         master_filter <- Reduce(`&`, cell_filters)
 
         to_return <- htmltools::tagList()
         j <- 1
         for (i in seq_len(length(somaker_dataobject$columns_to_filter))) {
-          if (length(slider_input_vals[[
+          high_value <- slider_input_vals[[
             somaker_dataobject$columns_to_filter[[i]]
-          ]]()) > 1) {
-            to_return[[j]] <- bslib::value_box(
-              title = shiny::markdown(stringr::str_c(
-                "**", somaker_dataobject$columns_to_filter[[i]], "_low", "**"
-              )),
-              value = slider_input_vals[[
-                somaker_dataobject$columns_to_filter[[i]]
-              ]]()[1],
-              showcase = bsicons::bs_icon("filter-left"),
-              theme_color = "primary"
-              # theme_color = "secondary"
-            )
-            j <- j + 1
+          ]]()[2]
+          low_value <- slider_input_vals[[
+            somaker_dataobject$columns_to_filter[[i]]
+          ]]()[1]
+          if (somaker_dataobject$columns_to_filter[[i]] == "percent_mt") {
+            if (!is.null(results$y)) {
+              high_value <- min(
+                max(results$y),
+                slider_input_vals[[
+                  somaker_dataobject$columns_to_filter[[i]]
+                ]]()[2]
+              )
+              low_value <- max(
+                min(results$y),
+                slider_input_vals[[
+                  somaker_dataobject$columns_to_filter[[i]]
+                ]]()[1]
+              )
+            }
+          } else if (
+            somaker_dataobject$columns_to_filter[[i]] == "nCount_RNA"
+          ) {
+            if (!is.null(results$x)) {
+              high_value <- min(
+                max(results$x),
+                slider_input_vals[[
+                  somaker_dataobject$columns_to_filter[[i]]
+                ]]()[2]
+              )
+              low_value <- max(
+                min(results$x),
+                slider_input_vals[[
+                  somaker_dataobject$columns_to_filter[[i]]
+                ]]()[1]
+              )
+            }
+          } else {
+            low_value <- slider_input_vals[[
+              somaker_dataobject$columns_to_filter[[i]]
+            ]]()[1]
+            high_value <- slider_input_vals[[
+              somaker_dataobject$columns_to_filter[[i]]
+            ]]()[2]
           }
+          to_return[[j]] <- bslib::value_box(
+            title = shiny::markdown(stringr::str_c(
+              "**", somaker_dataobject$columns_to_filter[[i]], "_low", "**"
+            )),
+            value = low_value,
+            showcase = bsicons::bs_icon("filter-left"),
+            theme_color = "primary"
+            # theme_color = "secondary"
+          )
+          j <- j + 1
+
           to_return[[j]] <- bslib::value_box(
             title = shiny::markdown(stringr::str_c(
               "**", somaker_dataobject$columns_to_filter[[i]], "_high", "**"
             )),
-            value = slider_input_vals[[
-              somaker_dataobject$columns_to_filter[[i]]
-            ]]()[2],
+            value = high_value,
             showcase = bsicons::bs_icon("filter-right"),
             theme_color = "primary"
           )
@@ -936,7 +1025,31 @@ SeuratObjectMaker <- function(
             )
           )
         }
-        # print(cell_filters)
+        results <- plotly::event_data(
+          "plotly_selected",
+          source = "perc_mt_plot"
+        )
+        if (!is.null(results$y)) {
+          cell_filters <- c(
+            cell_filters,
+            list(
+              reactive_metadata$data[["percent_mt"]] <=
+                max(results$y)
+            ),
+            list(
+              reactive_metadata$data[["percent_mt"]] >=
+                min(results$y)
+            ),
+            list(
+              reactive_metadata$data[["nCount_RNA"]] <=
+                max(results$x)
+            ),
+            list(
+              reactive_metadata$data[["nCount_RNA"]] >=
+                min(results$x)
+            )
+          )
+        }
         master_filter <- Reduce(`&`, cell_filters)
         somaker_dataobject$filtered_n_cells <- nrow(reactive_metadata$data[
           master_filter,
@@ -959,8 +1072,12 @@ SeuratObjectMaker <- function(
         )
 
         for (md_column in somaker_dataobject$columns_to_filter) {
-          somaker_dataobject[[stringr::str_c(md_column, "_low")]] <- slider_input_vals[[md_column]]()[1]
-          somaker_dataobject[[stringr::str_c(md_column, "_high")]] <- slider_input_vals[[md_column]]()[2]
+          somaker_dataobject[[
+            stringr::str_c(md_column, "_low")
+          ]] <- slider_input_vals[[md_column]]()[1]
+          somaker_dataobject[[
+            stringr::str_c(md_column, "_high")
+          ]] <- slider_input_vals[[md_column]]()[2]
         }
 
         shinycssloaders::showPageSpinner(
@@ -979,6 +1096,34 @@ SeuratObjectMaker <- function(
       }
     )
 
+    output$original_n_cells_results <- shiny::renderText({
+      somaker_dataobject$original_n_cells
+    })
+    output$filtered_n_cells_results <- shiny::renderText({
+      somaker_dataobject$filtered_n_cells
+    })
+    output$final_n_cells <- shiny::renderUI({
+      htmltools::tagList(
+        bslib::layout_column_wrap(
+          width = 2,
+          bslib::value_box(
+            title = "Original number of cells",
+            value = somaker_dataobject$original_n_cells,
+            showcase = bsicons::bs_icon("clipboard-data"),
+            theme_color = "success"
+          ),
+          bslib::value_box(
+            title = "Number of cells left after filtering",
+            value = somaker_dataobject$filtered_n_cells,
+            showcase = bsicons::bs_icon("receipt-cutoff"),
+            theme_color = "warning"
+          ),
+          heights_equal = "all",
+          fill = TRUE
+        )
+      )
+    })
+
     output$results_violin_plots <- shiny::renderUI({
       to_return <- htmltools::tagList()
       for (i in seq_len(length(somaker_dataobject$columns_to_filter))) {
@@ -993,7 +1138,9 @@ SeuratObjectMaker <- function(
             shiny::markdown(stringr::str_c(
               "**", somaker_dataobject$columns_to_filter[[i]], "**"
             )),
-            violin_plot_ui(stringr::str_c("vln_", somaker_dataobject$columns_to_filter[[i]])),
+            violin_plot_ui(
+              stringr::str_c("vln_", somaker_dataobject$columns_to_filter[[i]])
+            ),
             style = "width: 60%; max-width: 600px;",
           )
         )
