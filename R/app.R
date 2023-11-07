@@ -523,13 +523,20 @@ SeuratObjectMaker <- function(
 
     output$dir_valid_UI <- shiny::renderUI({
       htmltools::div(
-        htmltools::p(
-          shiny::markdown(
-            stringr::str_c(
-              "`", somaker_dataobject$selected_directory, "`",
-              " is a valid count matrix directory."
-            )
-          )
+        htmltools::br(),
+        htmltools::div(
+          style = "display: flex; justify-content: center;",
+          bslib::card(
+            bslib::card_header(htmltools::h3("Success!")),
+            shiny::markdown(
+              stringr::str_c(
+                "`", somaker_dataobject$selected_directory, "`",
+                " is a valid count matrix directory."
+              )
+            ),
+            class = "card text-bg-success",
+            style = "width: 30%"
+          ),
         ),
         htmltools::br(),
         htmltools::div(
@@ -570,11 +577,22 @@ SeuratObjectMaker <- function(
     })
 
     output$dir_invalid_UI <- shiny::renderUI({
-      shiny::markdown(stringr::str_c(
-        "`", somaker_dataobject$selected_directory, "`",
-        " is _not_ a valid count matrix directory. ",
-        "Please see the description of the format above."
-      ))
+      htmltools::br()
+      htmltools::div(
+        style = "display: flex; justify-content: center;",
+        bslib::card(
+          bslib::card_header(htmltools::h4("Did not succeed.")),
+          shiny::markdown(
+            stringr::str_c(
+              "`", somaker_dataobject$selected_directory, "`",
+              " is _not_ a valid count matrix directory. \n\n",
+              "Please see the description of the format above."
+            )
+          ),
+          class = "card text-bg-danger",
+          style = "width: 30%"
+        ),
+      )
     })
 
     shinyjs::onclick("load_into_seurat",

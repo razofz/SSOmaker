@@ -35,8 +35,6 @@ qc_slider_server <- function(id, col, metadata, start_values) {
         value = start_values
       )
     })
-    # shinyjs::logjs(start_values)
-
     return(shiny::reactive(input$slider))
   })
 }
@@ -50,14 +48,8 @@ qc_plot_server <- function(id, col, metadata, ranges) {
   stopifnot(shiny::is.reactive(ranges))
 
   shiny::moduleServer(id, function(input, output, session) {
-    # observe({
-    #   print("ranges():")
-    #   print(ranges())
-    # })
     output$output <- shiny::renderUI({
       htmltools::tagList(
-        # output$foo <- renderText(ranges()),
-        # textOutput(ranges()),
         plotly::renderPlotly({
           p <- plotly::plot_ly(
             data = metadata$data,
