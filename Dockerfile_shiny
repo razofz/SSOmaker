@@ -1,0 +1,26 @@
+# Use an official R base image
+FROM rocker/shiny:latest
+
+# Install system dependencies (if any)
+RUN apt update && apt install -y \
+    libxml2-dev \
+    libssl-dev \
+    libcurl4-openssl-dev \
+    libfontconfig1-dev \
+    libharfbuzz-dev libfribidi-dev \
+    libfreetype-dev libpng-dev libtiff5-dev libjpeg-dev \
+    libglpk40
+
+# # Set the working directory to /package
+# WORKDIR /package
+
+# Copy the current directory contents into the container at /package
+COPY . /srv/shiny-server
+
+EXPOSE 3838
+
+# Install your package
+RUN R -e "install.packages('devtools')"
+RUN R -e "devtools::install('/srv/shiny-server')"
+
+# CMD ["/usr/bin/shiny-server.sh"]

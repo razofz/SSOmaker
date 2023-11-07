@@ -1,0 +1,30 @@
+Package: SeuratObjectMaker
+Title: A Webapp For Turning A Count Matrix Directory Into A Seurat Object
+Version: 0.0.1
+Authors@R: 
+    person("Rasmus", "Olofzon", , "rasmus.olofzon@gmail.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0001-8079-8718"))
+Description: Launch a Shiny webapp. Load a count matrix directory,
+    interactively filter on metadata,
+    view results, download Seurat object and results of differential gene
+    expression testing.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3
+Imports: 
+    bsicons,
+    bslib,
+    dplyr,
+    DT,
+    ggplot2,
+    htmltools,
+    plotly,
+    Seurat,
+    shiny,
+    shinycssloaders,
+    shinyFiles,
+    shinyjs,
+    stringr
+Exports:
+    SeuratObjectMaker
