@@ -4,7 +4,8 @@
 
 Selecting directory, with data validity checks:
 
-![](screenshots/page1.png)
+![](screenshots/page1_a.png)
+![](screenshots/page1_b.png)
 
 Filtering page, setting thresholds with sliders. Violin plots and nbr cells left after filtering are updated in realtime.
 
