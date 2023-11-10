@@ -1,3 +1,7 @@
+#' Initialse the SSOMaker in a browser
+#' @name SeuratObjectMaker
+#' @description Start the SSOmaker in a browser so you can import data and process it.
+#' @export SeuratObjectMaker
 SeuratObjectMaker <- function(
     appDir = getwd(),
     port = getOption("shiny.port"),
