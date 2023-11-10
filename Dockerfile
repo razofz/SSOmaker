@@ -12,7 +12,9 @@ RUN R -e 'install.packages(c("Seurat"))'
 RUN R -e 'remotes::install_github("daattali/shinycssloaders")'
 
 # Copy the current directory contents into the container at /package
+# note: this will always be run, thus any lines below will not be cached
+# when building the Docker image
 COPY . /package
 
 RUN R -e "devtools::install('/package')"
-# RUN R -e 'SeuratObjectMaker(port = 3838, launch.browser = F)'
+RUN R -e 'SeuratObjectMaker::SeuratObjectMaker(port = 3838, launch.browser = F)'
