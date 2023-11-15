@@ -16,7 +16,6 @@ check_files <- function(directory, suffix) {
     "matrix.mtx",
     "barcodes.tsv"
   )
-
   if (
     !any(as.logical(
       lapply(
@@ -41,6 +40,24 @@ check_files <- function(directory, suffix) {
       ))
     )
   }
+}
+
+
+check_files_uploaded <- function(files_list) {
+  reference_files <- c(
+    "features.tsv",
+    "genes.tsv",
+    "matrix.mtx",
+    "barcodes.tsv"
+  )
+  suffix <- ".gz"
+  search_space <- c(
+    reference_files,
+    stringr::str_c(reference_files, suffix)
+  )
+  return(
+    all(files_list %in% search_space)
+  )
 }
 
 

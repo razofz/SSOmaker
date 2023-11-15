@@ -1,16 +1,27 @@
-#' Initialise the SSOMaker in a browser
+#' Start the webapp SeuratObjectMaker
 #' @name SeuratObjectMaker
-#' @description Start the SSOmaker in a browser so you can import data and process it.
+#' @description Start the SeuratObjectMaker in a browser so you can import data and process it.
+#' All parameters are the same as in \code{shiny::runApp} and are simply passed through
+#' to that call. Any descriptions surrounded with quotes are taken from the
+#' \code{shiny::runApp} documentation.
+#' @param appDir Where the package is located. Default is the current working
+#' directory.
+#' @param port Which TCP port to run the app from. Default is \code{3838}.
+#' @param launch.browser Whether to automatically start a browser or not.
+#' For non-interactive sessions, set this to \code{FALSE} to not get messages
+#' about missing browser etc.
+#' @param host The hostname to serve the app from. Default \code{127.0.0.1}.
+#' @param quiet "\emph{Should Shiny status messages be shown? Defaults to \code{FALSE}.}"
+#' @examplesIf interactive()
+#' SeuratObjectMaker()
 #' @export SeuratObjectMaker
 SeuratObjectMaker <- function(
     appDir = getwd(),
-    port = getOption("shiny.port"),
+    port = 3838,
     launch.browser = getOption("shiny.launch.browser", interactive()),
     host = getOption("shiny.host", "127.0.0.1"),
-    workerId = "",
-    quiet = FALSE,
-    display.mode = c("auto", "normal", "showcase"),
-    test.mode = getOption("shiny.testmode", FALSE)) {
+    running_locally = FALSE,
+    quiet = FALSE) {
   ui <- htmltools::tagList(
     shinyjs::useShinyjs(),
     bslib::page_navbar(
@@ -62,39 +73,18 @@ SeuratObjectMaker <- function(
         open = "closed",
         position = "right"
       ),
+      ##############################################################################
+      # Load data tab
+      ##############################################################################
       bslib::nav_panel(
         id = "load_data",
         title = bslib::card_title("Load data"),
         value = "load_data",
         bslib::card_body(
-          shiny::markdown(
-            mds = c(
-              "## Select a directory",
-              "Select the **directory** (**folder**) where the _feature-barcode_ count matrices are. The files should be in the [Matrix Market Exchange format](https://math.nist.gov/MatrixMarket/formats.html) that e.g. the [Cellranger](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/output/matrices) pipeline outputs.",
-              "",
-              "That format consists of these files:",
-              "",
-              "```bash",
-              "    matrix.mtx",
-              "    features.tsv",
-              "    barcodes.tsv",
-              "```",
-              "",
-              "The files can also be compressed (in the `gzip` format) and then have the file extension `.gz`, e.g. `matrix.mtx.gz`.",
-              "",
-              "If the matrices were produced with e.g. a version of Cellranger below v3, `features.tsv` is instead named `genes.tsv`."
-            )
-          ),
+          shiny::uiOutput("dataload_instructions"),
           htmltools::div(
             style = "display: flex; justify-content: center;",
-            shinyFiles::shinyDirButton(
-              "directory",
-              "Folder select",
-              "Please select a folder",
-              icon = bsicons::bs_icon("folder"),
-              buttonType = "primary",
-              style = "width: 40%;"
-            )
+            shiny::uiOutput("file_selector")
           ),
           shinyjs::hidden(shiny::uiOutput("dir_valid_UI")),
           shinyjs::hidden(shiny::uiOutput("dir_invalid_UI")),
@@ -418,70 +408,216 @@ SeuratObjectMaker <- function(
     # Load data tab
     ################################################################################
 
+    output$dataload_instructions <- shiny::renderUI({
+      to_return <- htmltools::tagList()
+      i <- 1
+      if (running_locally) {
+        to_return[1] <- shiny::markdown(
+          mds = c(
+            "## Select a directory",
+            "Select the **directory** (**folder**) where the _feature-barcode_ count matrices are. "
+          )
+        )
+      } else {
+        to_return[[1]] <- shiny::markdown(
+          mds = c(
+            "## Select count matrix files",
+            "Select the _feature-barcode_ count matrix files. "
+          )
+        )
+      }
+      to_return[[2]] <- shiny::markdown(
+        mds = c(
+          "The files should be in the ",
+          "Matrix Market (MM) exchange format that e.g. the ",
+          "[Cellranger](https://support.10xgenomics.com/single-cell-gene-expression/software/pipelines/latest/output/matrices)",
+          "pipeline outputs.",
+          "That format consists of these files:",
+          "",
+          "```bash",
+          "    matrix.mtx",
+          "    features.tsv",
+          "    barcodes.tsv",
+          "```",
+          "",
+          "The files can also be compressed (in the `gzip` format) and then have the file extension `.gz`,",
+          "e.g. `matrix.mtx.gz`.",
+          "",
+          "If the matrices were produced with e.g. a version of Cellranger below v3,",
+          "`features.tsv` is instead named `genes.tsv`."
+        )
+      )
+      return(to_return)
+    })
+
     volumes <- c(
       Home = getwd(),
       "R Installation" = R.home(),
       shinyFiles::getVolumes()()
     ) # TODO: change back to fs::path_home() when done testing
 
-    withr::with_options(
-      new = list(shiny.maxRequestSize = 900 * 1024^2), # 900 MB limit
-      code = shinyFiles::shinyDirChoose(
-        input,
-        "directory",
-        roots = volumes,
-        session = session,
-        restrictions = system.file(package = "base"),
-        allowDirCreate = FALSE
+    if (running_locally) {
+      output$file_selector <- shiny::renderUI({
+        htmltools::tagList(
+          shinyFiles::shinyDirButton(
+            "file_button",
+            "Folder select",
+            "Please select a folder",
+            icon = bsicons::bs_icon("folder"),
+            buttonType = "primary",
+            style = "width: 40%;"
+          )
+        )
+      })
+      withr::with_options(
+        new = list(shiny.maxRequestSize = 900 * 1024^2), # 900 MB limit
+        code = shinyFiles::shinyDirChoose(
+          input,
+          "file_button",
+          roots = volumes,
+          session = session,
+          restrictions = system.file(package = "base"),
+          allowDirCreate = FALSE
+        )
       )
-    )
-
-
+    } else {
+      output$file_selector <- shiny::renderUI({
+        htmltools::tagList(
+          shiny::fileInput(
+            inputId = "file_button",
+            label = "Matrix files select",
+            buttonLabel = "Please select the three matrix files:",
+            multiple = TRUE
+            # icon = bsicons::bs_icon("folder"),
+            # buttonType = "primary",
+            # style = "width: 40%;"
+          )
+        )
+      })
+      # somaker_dataobject$files_selected <- shiny::reactive({
+      #   shiny::req(input$file_button)
+      #   return(input$file_button$datapath)
+      # })
+    }
 
     reactive_features <- shiny::reactiveValues(
       data = SeuratObject::pbmc_small[[]]
     )
 
     # Validate and store the selected directory
-    shiny::observeEvent(input$directory, {
-      if (!is.integer(input$directory)) {
-        selected_directory <- shinyFiles::parseDirPath(volumes, input$directory)
-        somaker_dataobject$selected_directory <- selected_directory
-        if (length(somaker_dataobject$selected_directory) > 0) {
-          is_valid_dir <- validate_directory(
-            somaker_dataobject$selected_directory
+    shiny::observeEvent(input$file_button, {
+      if (running_locally) {
+        if (!is.integer(input$file_button)) {
+          selected_directory <- shinyFiles::parseDirPath(
+            volumes,
+            input$file_button
           )
-          if (is_valid_dir) {
-            filenames <- c("features.tsv", "genes.tsv")
-            for (suffix in c("", ".gz")) {
-              for (fn in stringr::str_c(filenames, suffix)) {
-                if (file.exists(
-                  file.path(somaker_dataobject$selected_directory, fn)
-                )) {
-                  reactive_features$data <- data.table::fread(
-                    file = file.path(somaker_dataobject$selected_directory, fn),
-                    header = FALSE,
-                    nrows = 5
-                  )
+          somaker_dataobject$selected_directory <- selected_directory
+          if (length(somaker_dataobject$selected_directory) > 0) {
+            is_valid_dir <- validate_directory(
+              somaker_dataobject$selected_directory
+            )
+            if (is_valid_dir) {
+              filenames <- c("features.tsv", "genes.tsv")
+              for (suffix in c("", ".gz")) {
+                for (fn in stringr::str_c(filenames, suffix)) {
+                  if (file.exists(
+                    file.path(somaker_dataobject$selected_directory, fn)
+                  )) {
+                    reactive_features$data <- data.table::fread(
+                      file = file.path(
+                        somaker_dataobject$selected_directory,
+                        fn
+                      ),
+                      header = FALSE,
+                      nrows = 5
+                    )
+                  }
                 }
+              }
+              shinyjs::hide("dir_invalid_UI")
+              shinyjs::show("dir_valid_UI")
+            } else {
+              shinyjs::hide("dir_valid_UI")
+              shinyjs::show("dir_invalid_UI")
+            }
+            somaker_dataobject$is_valid_directory <- is_valid_dir
+          } else {
+            shinyjs::hide("dir_valid_UI")
+            shinyjs::hide("dir_invalid_UI")
+          }
+        }
+      } else if (!running_locally) {
+        shinyjs::logjs(input$file_button)
+        shinyjs::logjs(typeof(input$file_button))
+        shinyjs::logjs(class(input$file_button))
+        shinyjs::logjs(dim(input$file_button))
+        # print(somaker_dataobject$files_selected)
+        if (dim(input$file_button)[1] != 3) {
+          shinyjs::hide("dir_valid_UI")
+          shinyjs::show("dir_invalid_UI")
+        } else {
+          is_valid_dir <- check_files_uploaded(
+            input$file_button[, "name"]
+          )
+          tmp_dir <- stringr::str_split_i(
+            input$file_button[1, "datapath"],
+            pattern = "/",
+            -2
+          )
+          shinyjs::logjs(tmp_dir)
+          # print(tempdir())
+          # TAG: IO
+          somaker_dataobject$selected_directory <- file.path(tempdir(), tmp_dir)
+          shinyjs::logjs(somaker_dataobject$selected_directory)
+          shinyjs::logjs(dir(somaker_dataobject$selected_directory))
+          for (i in 1:3) {
+            file.rename(
+              input$file_button[i, "datapath"],
+              file.path(
+                dirname(input$file_button[i, "datapath"]),
+                input$file_button[i, "name"]
+              )
+            )
+          }
+          shinyjs::logjs(dir(somaker_dataobject$selected_directory))
+          # shinyjs::logjs(paste("is_valid_dir: ", is_valid_dir))
+          if (is_valid_dir) {
+            filenames <- unlist(
+              lapply(
+                c("features.tsv", "genes.tsv"),
+                FUN = \(x) stringr::str_c(x, c("", ".gz"))
+              )
+            )
+            for (fn in filenames) {
+              # shinyjs::logjs(fn)
+              # shinyjs::logjs(feat_file_name)
+              # shinyjs::logjs(file.path(feat_file_name))
+              instance_fn <- file.path(
+                somaker_dataobject$selected_directory,
+                fn
+              )
+              if (file.exists(instance_fn)) {
+                reactive_features$data <- data.table::fread(
+                  file = instance_fn,
+                  header = FALSE,
+                  nrows = 5
+                )
+                break
               }
             }
             shinyjs::hide("dir_invalid_UI")
             shinyjs::show("dir_valid_UI")
+            somaker_dataobject$is_valid_directory <- is_valid_dir
           } else {
             shinyjs::hide("dir_valid_UI")
-            shinyjs::show("dir_invalid_UI")
+            shinyjs::hide("dir_invalid_UI")
           }
-          somaker_dataobject$is_valid_directory <- is_valid_dir
-        } else {
-          shinyjs::hide("dir_valid_UI")
-          shinyjs::hide("dir_invalid_UI")
         }
-        # somaker_dataobject$selected_directory <- shinyFiles::parseDirPath(roots = c(wd = getwd()), input$directory)
       }
     })
 
-    shinyjs::onclick("directory",
+    shinyjs::onclick("file_button",
       expr = {
         shinyjs::hide("dir_valid_UI")
         shinyjs::hide("dir_invalid_UI")
@@ -533,10 +669,14 @@ SeuratObjectMaker <- function(
           bslib::card(
             bslib::card_header(htmltools::h3("Success!")),
             shiny::markdown(
-              stringr::str_c(
-                "`", somaker_dataobject$selected_directory, "`",
-                " is a valid count matrix directory."
-              )
+              if (running_locally) {
+                stringr::str_c(
+                  "`", somaker_dataobject$selected_directory, "`",
+                  " is a valid count matrix directory."
+                )
+              } else {
+                "A valid count matrix directory."
+              }
             ),
             class = "card text-bg-success",
             style = "width: 30%"
@@ -587,11 +727,18 @@ SeuratObjectMaker <- function(
         bslib::card(
           bslib::card_header(htmltools::h4("Did not succeed.")),
           shiny::markdown(
-            stringr::str_c(
-              "`", somaker_dataobject$selected_directory, "`",
-              " is _not_ a valid count matrix directory. \n\n",
-              "Please see the description of the format above."
-            )
+            if (running_locally) {
+              stringr::str_c(
+                "`", somaker_dataobject$selected_directory, "`",
+                " is _not_ a valid count matrix directory. \n\n",
+                "Please see the description of the format above."
+              )
+            } else {
+              stringr::str_c(
+                "Not a valid count matrix. \n\n",
+                "Please see the description of the format above."
+              )
+            }
           ),
           class = "card text-bg-danger",
           style = "width: 30%"
@@ -610,6 +757,8 @@ SeuratObjectMaker <- function(
                 colnames(reactive_features$data) == input$feat_radiobuttons
               )
               shinyjs::logjs(gene_column)
+              shinyjs::logjs(somaker_dataobject$selected_directory)
+              shinyjs::logjs(dir(somaker_dataobject$selected_directory))
               sobj_data <- read_data(
                 somaker_dataobject$selected_directory,
                 gene_column = gene_column
@@ -1307,10 +1456,7 @@ SeuratObjectMaker <- function(
         port = port,
         launch.browser = launch.browser,
         host = host,
-        workerId = workerId,
-        quiet = quiet,
-        display.mode = display.mode,
-        test.mode = test.mode
+        quiet = quiet
       )
     )
   )
