@@ -1,7 +1,7 @@
 qc_slider_ui <- function(id) {
   shiny::tagList(
     shiny::sliderInput(
-      inputId = NS(id, "slider"),
+      inputId = shiny::NS(id, "slider"),
       label = "slider",
       min = 0,
       max = 5000,
@@ -40,7 +40,7 @@ qc_slider_server <- function(id, col, metadata, start_values) {
 }
 
 qc_plot_ui <- function(id) {
-  shiny::uiOutput(NS(id, "output"))
+  shiny::uiOutput(shiny::NS(id, "output"))
 }
 qc_plot_server <- function(id, col, metadata, ranges) {
   stopifnot(shiny::is.reactivevalues(metadata))
@@ -95,11 +95,11 @@ qc_module_UI <- function(id) {
             )
           )
         ),
-        qc_plot_ui(NS(id, "qc_plot")),
+        qc_plot_ui(shiny::NS(id, "qc_plot")),
         # verbatimTextOutput(NS(id, "foo")),
         htmltools::div(
           style = "display: flex; justify-content: center;",
-          qc_slider_ui(NS(id, "qc_slide"))
+          qc_slider_ui(shiny::NS(id, "qc_slide"))
         ),
         htmltools::div(
           style = "display: flex; justify-content: center;",
@@ -120,9 +120,9 @@ qc_module_UI <- function(id) {
   )
 }
 qc_module_server <- function(id, col, metadata, start_values) {
-  stopifnot(!is.reactive(start_values))
-  stopifnot(is.reactivevalues(metadata))
-  stopifnot(!is.reactive(col))
+  stopifnot(!shiny::is.reactive(start_values))
+  stopifnot(shiny::is.reactivevalues(metadata))
+  stopifnot(!shiny::is.reactive(col))
 
   shiny::moduleServer(id, function(input, output, session) {
     slider_input_vals <- qc_slider_server(
@@ -146,7 +146,7 @@ qc_module_server <- function(id, col, metadata, start_values) {
 }
 
 violin_plot_ui <- function(id) {
-  shiny::uiOutput(NS(id, "output"))
+  shiny::uiOutput(shiny::NS(id, "output"))
 }
 violin_plot_server <- function(id, col, metadata) {
   stopifnot(shiny::is.reactivevalues(metadata))

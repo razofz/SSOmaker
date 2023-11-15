@@ -83,9 +83,9 @@ read_data <- function(
     cell.column = cell_column,
     gene.column = gene_column
   )
-  # handle the case of e.g. CITE-seq, where there are multiple assays.
+  # TODO: handle the case of e.g. CITE-seq, where there are multiple assays.
   # pick out only the RNA assay for now
-  if (class(so_data) == "list") {
+  if (is(so_data, "list")) {
     print(names(so_data))
     so_data <- so_data[[
       grep(
