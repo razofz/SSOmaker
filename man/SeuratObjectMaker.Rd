@@ -2,19 +2,38 @@
 % Please edit documentation in R/app.R
 \name{SeuratObjectMaker}
 \alias{SeuratObjectMaker}
-\title{Initialse the SSOMaker in a browser}
+\title{Start the webapp SeuratObjectMaker}
 \usage{
 SeuratObjectMaker(
   appDir = getwd(),
-  port = getOption("shiny.port"),
+  port = 3838,
   launch.browser = getOption("shiny.launch.browser", interactive()),
   host = getOption("shiny.host", "127.0.0.1"),
-  workerId = "",
-  quiet = FALSE,
-  display.mode = c("auto", "normal", "showcase"),
-  test.mode = getOption("shiny.testmode", FALSE)
+  quiet = FALSE
 )
 }
+\arguments{
+\item{appDir}{Where the package is located. Default is the current working
+directory.}
+
+\item{port}{Which TCP port to run the app from. Default is \code{3838}.}
+
+\item{launch.browser}{Whether to automatically start a browser or not.
+For non-interactive sessions, set this to \code{FALSE} to not get messages 
+about missing browser etc.}
+
+\item{host}{The hostname to serve the app from. Default \code{127.0.0.1}.}
+
+\item{quiet}{"\emph{Should Shiny status messages be shown? Defaults to \code{FALSE}.}"}
+}
 \description{
-Start the SSOmaker in a browser so you can import data and process it.
+Start the SeuratObjectMaker in a browser so you can import data and process it.
+All parameters are the same as in \code{shiny::runApp} and are simply passed through
+to that call. Any descriptions surrounded with quotes are taken from the
+\code{shiny::runApp} documentation.
+}
+\examples{
+\dontshow{if (interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+SeuratObjectMaker()
+\dontshow{\}) # examplesIf}
 }
