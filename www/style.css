@@ -1,0 +1,14 @@
+.btn-file {
+    background-color: #593196 !important;
+    /* had to add !important above to override bootstrap class */
+    /*
+    TODO: hardcoded colour value, change if using
+    other theme in future. Or if adding dark mode..
+    Should probably use SASS then, to make it easier.
+    */
+}
+
+.file-load-button-SOM {
+    color: white;
+}
+

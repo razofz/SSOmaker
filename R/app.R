@@ -32,6 +32,8 @@ run_SOM <- function(
     quiet = FALSE) {
   ui <- htmltools::tagList(
     shinyjs::useShinyjs(),
+    # htmltools::tags$head(htmltools::tags$link(rel = "stylesheet", type="text/css", href="www/style.css")),
+    htmltools::tags$head(htmltools::includeCSS("www/style.css")),
     bslib::page_navbar(
       id = "nav",
       selected = "load_data",
@@ -92,7 +94,10 @@ run_SOM <- function(
           shiny::uiOutput("dataload_instructions"),
           htmltools::div(
             style = "display: flex; justify-content: center;",
+            # htmltools::div(
+            #   style = "width: 50%",
             shiny::uiOutput("file_selector")
+            # )
           ),
           shinyjs::hidden(shiny::uiOutput("dir_valid_UI")),
           shinyjs::hidden(shiny::uiOutput("dir_invalid_UI")),
@@ -401,12 +406,12 @@ run_SOM <- function(
 
     output$dataobject <- shiny::renderUI({
       bar <- shiny::reactiveValuesToList(somaker_dataobject)
-      result <- htmltools::tagList(tags$h3("Data object"))
+      result <- htmltools::tagList(htmltools::tags$h3("Data object"))
       for (i in seq_along(bar)) {
         result <- htmltools::tagList(
           result,
-          tags$h6(names(bar)[i]),
-          tags$p(bar[[i]])
+          htmltools::tags$h6(names(bar)[i]),
+          htmltools::tags$p(bar[[i]])
         )
       }
       return(result)
@@ -472,8 +477,8 @@ run_SOM <- function(
             "Folder select",
             "Please select a folder",
             icon = bsicons::bs_icon("folder"),
-            buttonType = "primary",
-            style = "width: 40%;"
+            buttonType = "primary"#,
+            # style = "width: 40%;"
           )
         )
       })
@@ -491,21 +496,27 @@ run_SOM <- function(
     } else {
       output$file_selector <- shiny::renderUI({
         htmltools::tagList(
-          shiny::fileInput(
-            inputId = "file_button",
-            label = "Matrix files select",
-            buttonLabel = "Please select the three matrix files:",
-            multiple = TRUE
-            # icon = bsicons::bs_icon("folder"),
-            # buttonType = "primary",
-            # style = "width: 40%;"
+          shiny::div(
+            style = "text-align: center;",
+            shiny::fileInput(
+              inputId = "file_button",
+              label = htmltools::strong("Matrix files select"),
+              buttonLabel = htmltools::span(
+                shiny::markdown(
+                  stringr::str_c(
+                    bsicons::bs_icon("folder"),
+                    " Please select the three matrix files: "
+                  ),
+                ),
+                class = "file-load-button-SOM"
+              ),
+              multiple = TRUE,
+              accept = c(".csv", ".tsv", ".gz", ".mtx"),
+              placeholder = "Nothing selected yet"
+            )
           )
         )
       })
-      # somaker_dataobject$files_selected <- shiny::reactive({
-      #   shiny::req(input$file_button)
-      #   return(input$file_button$datapath)
-      # })
     }
 
     reactive_features <- shiny::reactiveValues(
