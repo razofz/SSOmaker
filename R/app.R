@@ -1,7 +1,9 @@
 #' Start the webapp SeuratObjectMaker
-#' @name SeuratObjectMaker
-#' @description Start the SeuratObjectMaker in a browser so you can import data and process it.
-#' All parameters are the same as in \code{shiny::runApp} and are simply passed through
+#' @name run_SOM
+#' @description Start the SeuratObjectMaker in a browser so you can
+#' import data and process it. All parameters are the same
+#' as in \code{shiny::runApp}
+#' and are simply passed through
 #' to that call. Any descriptions surrounded with quotes are taken from the
 #' \code{shiny::runApp} documentation.
 #' @param appDir Where the package is located. Default is the current working
@@ -11,16 +13,22 @@
 #' For non-interactive sessions, set this to \code{FALSE} to not get messages
 #' about missing browser etc.
 #' @param host The hostname to serve the app from. Default \code{127.0.0.1}.
-#' @param quiet "\emph{Should Shiny status messages be shown? Defaults to \code{FALSE}.}"
+#' @param running_locally Is the app running on the same computer the data files
+#' exist on or not? TRUE if so, FALSE if running from a server.
+#' Defaults to \code{TRUE}, since that is a nicer interface
+#' and someone running it from a server probably looks at this documentation
+#' and changes the parameter.
+#' @param quiet "\emph{Should Shiny status messages be shown?
+#' Defaults to \code{FALSE}.}"
 #' @examplesIf interactive()
-#' SeuratObjectMaker()
-#' @export SeuratObjectMaker
-SeuratObjectMaker <- function(
+#' run_SOM()
+#' @export run_SOM
+run_SOM <- function(
     appDir = getwd(),
     port = 3838,
     launch.browser = getOption("shiny.launch.browser", interactive()),
     host = getOption("shiny.host", "127.0.0.1"),
-    running_locally = FALSE,
+    running_locally = TRUE,
     quiet = FALSE) {
   ui <- htmltools::tagList(
     shinyjs::useShinyjs(),
@@ -548,10 +556,6 @@ SeuratObjectMaker <- function(
           }
         }
       } else if (!running_locally) {
-        shinyjs::logjs(input$file_button)
-        shinyjs::logjs(typeof(input$file_button))
-        shinyjs::logjs(class(input$file_button))
-        shinyjs::logjs(dim(input$file_button))
         # print(somaker_dataobject$files_selected)
         if (dim(input$file_button)[1] != 3) {
           shinyjs::hide("dir_valid_UI")
@@ -565,12 +569,8 @@ SeuratObjectMaker <- function(
             pattern = "/",
             -2
           )
-          shinyjs::logjs(tmp_dir)
-          # print(tempdir())
           # TAG: IO
           somaker_dataobject$selected_directory <- file.path(tempdir(), tmp_dir)
-          shinyjs::logjs(somaker_dataobject$selected_directory)
-          shinyjs::logjs(dir(somaker_dataobject$selected_directory))
           for (i in 1:3) {
             file.rename(
               input$file_button[i, "datapath"],
@@ -580,8 +580,6 @@ SeuratObjectMaker <- function(
               )
             )
           }
-          shinyjs::logjs(dir(somaker_dataobject$selected_directory))
-          # shinyjs::logjs(paste("is_valid_dir: ", is_valid_dir))
           if (is_valid_dir) {
             filenames <- unlist(
               lapply(
@@ -590,9 +588,6 @@ SeuratObjectMaker <- function(
               )
             )
             for (fn in filenames) {
-              # shinyjs::logjs(fn)
-              # shinyjs::logjs(feat_file_name)
-              # shinyjs::logjs(file.path(feat_file_name))
               instance_fn <- file.path(
                 somaker_dataobject$selected_directory,
                 fn
@@ -756,9 +751,6 @@ SeuratObjectMaker <- function(
               gene_column <- which(
                 colnames(reactive_features$data) == input$feat_radiobuttons
               )
-              shinyjs::logjs(gene_column)
-              shinyjs::logjs(somaker_dataobject$selected_directory)
-              shinyjs::logjs(dir(somaker_dataobject$selected_directory))
               sobj_data <- read_data(
                 somaker_dataobject$selected_directory,
                 gene_column = gene_column
@@ -1406,24 +1398,10 @@ SeuratObjectMaker <- function(
     # })
 
     output$metadata_filtered <- DT::renderDataTable({
-      shinyjs::logjs(
-        dim(
-          reactive_sobj$data@meta.data
-        )
-      )
-      shinyjs::logjs(
-        dim(
-          reactive_metadata$data
-        )
-      )
       DT::datatable(
         reactive_sobj$data@meta.data,
         caption = "Metadata",
-        # options = list(
-        #   pageLength = 5
-        # ),
         fillContainer = F
-        # style = 'bootstrap'
       )
     })
 
