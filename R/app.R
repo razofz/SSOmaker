@@ -33,7 +33,24 @@ run_SOM <- function(
   ui <- htmltools::tagList(
     shinyjs::useShinyjs(),
     # htmltools::tags$head(htmltools::tags$link(rel = "stylesheet", type="text/css", href="www/style.css")),
-    htmltools::tags$head(htmltools::includeCSS("www/style.css")),
+    # htmltools::tags$head(htmltools::includeCSS("www/style.css")),
+    htmltools::tags$head(
+      htmltools::tags$style(htmltools::HTML(
+        ".btn-file {
+            background-color: #593196 !important;
+            /* had to add !important above to override bootstrap class */
+            /*
+            TODO: hardcoded colour value, change if using
+            other theme in future. Or if adding dark mode..
+            Should probably use SASS then, to make it easier.
+            */
+        }
+
+        .file-load-button-SOM {
+            color: white;
+        } "
+      ))
+    ),
     bslib::page_navbar(
       id = "nav",
       selected = "load_data",
@@ -477,7 +494,7 @@ run_SOM <- function(
             "Folder select",
             "Please select a folder",
             icon = bsicons::bs_icon("folder"),
-            buttonType = "primary"#,
+            buttonType = "primary" # ,
             # style = "width: 40%;"
           )
         )
