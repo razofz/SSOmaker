@@ -23,11 +23,12 @@ Imports:
     plotly,
     shiny,
     shinyFiles,
-    shinycssloaders,
     shinyjs,
     stats,
     stringr,
     utils,
     withr
+Remotes:
+    github::daattali/shinycssloaders,
 RoxygenNote: 7.2.3
 Roxygen: list(markdown = TRUE)
