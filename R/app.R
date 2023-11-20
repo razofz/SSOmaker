@@ -97,6 +97,7 @@ run_SOM <- function(
         ),
         shiny::uiOutput(outputId = "dataobject"),
         fillable = TRUE,
+        # open = "open",
         open = "closed",
         position = "right"
       ),
@@ -156,33 +157,66 @@ run_SOM <- function(
             )
           ),
           shiny::uiOutput(outputId = "qc_UI"),
-          shiny::markdown(
-            mds = c(
-              "### Percent mitochondrial genes vs. number of transcripts"
-            )
-          ),
+          # shiny::markdown("---"),
+          htmltools::br(),
           htmltools::div(
-            style = "display: flex; justify-content: center;",
-            bslib::tooltip(
-              htmltools::span(
-                shiny::helpText("Current limitations of this plot "),
-                bsicons::bs_icon("info-circle")
+            id = "perc_mt_scatter_container",
+            shiny::markdown(
+              mds = c(
+                "### Percent mitochondrial genes vs. number of transcripts"
+              )
+            ),
+            htmltools::div(
+              id = "perc_mt_scatter_container",
+              style = "display: flex; justify-content: center;",
+              bslib::tooltip(
+                htmltools::span(
+                  shiny::helpText("Current limitations of this plot "),
+                  bsicons::bs_icon("info-circle")
+                ),
+                stringr::str_c(
+                  "For the moment the selection done in this plot does ",
+                  "not update the sliders for the violin plots above. ",
+                  "Nevertheless, the selection will affect the final filtering. ",
+                  "The narrowest filtering thresholds will be used."
+                )
               ),
-              stringr::str_c(
-                "For the moment the selection done in this plot does ",
-                "not update the sliders for the violin plots above. ",
-                "Nevertheless, the selection will affect the final filtering. ",
-                "The narrowest filtering thresholds will be used."
+            ),
+            htmltools::div(
+              style = "display: flex; justify-content: center;",
+              htmltools::div(
+                style = "width: 50%",
+                # shiny::uiOutput("perc_mt_scatter_container") # ,
+                plotly::plotlyOutput("perc_mt_scatter") # ,
               )
             )
           ),
           htmltools::div(
+            id = "perc_mt_not_found",
             style = "display: flex; justify-content: center;",
-            htmltools::div(
-              style = "width: 50%",
-              plotly::plotlyOutput("perc_mt_scatter") # ,
-            )
+            bslib::card(
+              # bslib::card_header(htmltools::h4("Did not succeed.")),
+              bslib::tooltip(
+                htmltools::div(
+                  style = "display: flex; justify-content: center;",
+                  htmltools::span(
+                    # shiny::helpText("% mitochondrial DNA? "),
+                    "% mitochondrial DNA? ",
+                    bsicons::bs_icon("info-circle")
+                  )
+                ),
+                shiny::markdown(
+                  stringr::str_c(
+                    "The percent of mitochondrial genes was calculated ",
+                    "to be zero, so no filtering for that is shown here."
+                  )
+                )
+              ),
+              class = "card text-bg-secondary",
+              style = "width: 15%"
+            ),
           ),
+          shiny::markdown("---"),
           # bslib::layout_column_wrap(
           #   width = 4,
           shiny::uiOutput(outputId = "filtering_thresholds"),
@@ -338,10 +372,28 @@ run_SOM <- function(
         )),
         DT::dataTableOutput("metadata_filtered"),
         htmltools::br(),
-        shiny::markdown(stringr::str_c(
-          "---\n\n",
-          "# Download data"
-        )),
+        htmltools::p(
+          shiny::markdown(
+            stringr::str_c(
+              "---\n\n",
+              "# Download data",
+              "\n\n",
+              "All processing steps can be found in the ",
+              "[slot](http://adv-r.had.co.nz/S4.html) `commands` of the SeuratObject, ",
+              "and the filtering thresholds can be found in the slot `misc`."
+            )
+          ),
+          shiny::helpText(
+            shiny::markdown(
+              stringr::str_c(
+                "In R, you can access the slots with ",
+                "`sobj@commands` and `sobj@misc` (given that you loaded ",
+                "the Seurat object as `sobj`, e.g. `sobj <- ",
+                "readRDS(\"SOM_output\".rds)`)."
+              )
+            )
+          )
+        ),
         htmltools::br(),
         bslib::layout_column_wrap(
           width = 2,
@@ -838,6 +890,9 @@ run_SOM <- function(
         bslib::nav_hide(id = "nav", target = "load_data")
         bslib::nav_show(id = "nav", target = "filtering")
         bslib::nav_select(id = "nav", selected = "filtering")
+
+        # somaker_dataobject$orig_limits <- list()
+
         for (column in colnames(reactive_metadata$data)) {
           if (is.numeric(reactive_metadata$data[[column]])) {
             values <- as.vector(
@@ -848,7 +903,23 @@ run_SOM <- function(
                 )
               )
             )
-            # slider_input_vals[[column]] <- values
+
+            # somaker_dataobject$orig_limits[[column]] <- list()
+            # somaker_dataobject$orig_limits[[column]][[
+            #   stringr::str_c(column, "_min")
+            # ]] <- min(reactive_metadata$data[[column]])
+            # somaker_dataobject$orig_limits[[column]][[
+            #   stringr::str_c(column, "_max")
+            # ]] <- max(reactive_metadata$data[[column]])
+            # print( somaker_dataobject$orig_limits[[column]])
+
+            # somaker_dataobject[[
+            #   stringr::str_c("orig_", column, "_min")
+            # ]] <- min(reactive_metadata$data[[column]])
+            # somaker_dataobject[[
+            #   stringr::str_c("orig_", column, "_max")
+            # ]] <- max(reactive_metadata$data[[column]])
+
             if (values[1] != values[2]) {
               if (!column %in% somaker_dataobject$columns_to_filter) {
                 somaker_dataobject$columns_to_filter <- c(
@@ -879,6 +950,14 @@ run_SOM <- function(
               )
             )
           })
+          # if (reactive_metadata$data$percent_mt != NULL &&
+          #   max(reactive_metadata$data$percent_mt) > 0
+          if (!"percent_mt" %in% somaker_dataobject$columns_to_filter) {
+            shinyjs::hide("perc_mt_scatter_container")
+            shinyjs::show("perc_mt_not_found")
+          } else {
+            shinyjs::hide("perc_mt_not_found")
+          }
         }
         # print(slider_input_vals)
       }
@@ -945,6 +1024,17 @@ run_SOM <- function(
     })
 
     # event_data <- shiny::reactiveVal(0)
+
+    # output$perc_mt_scatter_container <- shiny::renderUI({
+    #   if (
+    #     reactive_metadata$data$percent_mt != NULL &&
+    #       max(reactive_metadata$data$percent_mt) > 0
+    #   ) {
+    #     htmltools::tagList(
+    #       output$perc_mt_scatter
+    #     )
+    #   }
+    # })
 
     output$perc_mt_scatter <- plotly::renderPlotly({
       # shiny::req(reactive_metadata$data)
@@ -1019,6 +1109,13 @@ run_SOM <- function(
       if (somaker_dataobject$is_valid_data) {
         cell_filters <- list()
         for (column in somaker_dataobject$columns_to_filter) {
+          somaker_dataobject[[
+            stringr::str_c("orig_", column, "_min")
+          ]] <- min(reactive_metadata$data[[column]])
+          somaker_dataobject[[
+            stringr::str_c("orig_", column, "_max")
+          ]] <- max(reactive_metadata$data[[column]])
+
           if (length(slider_input_vals[[column]]()) > 1) {
             cell_filters <- c(
               cell_filters,
@@ -1036,30 +1133,32 @@ run_SOM <- function(
             )
           )
         }
-        results <- plotly::event_data(
-          "plotly_selected",
-          source = "perc_mt_plot"
-        )
-        if (!is.null(results$y)) {
-          cell_filters <- c(
-            cell_filters,
-            list(
-              reactive_metadata$data[["percent_mt"]] <=
-                max(results$y)
-            ),
-            list(
-              reactive_metadata$data[["percent_mt"]] >=
-                min(results$y)
-            ),
-            list(
-              reactive_metadata$data[["nCount_RNA"]] <=
-                max(results$x)
-            ),
-            list(
-              reactive_metadata$data[["nCount_RNA"]] >=
-                min(results$x)
-            )
+        if (!"percent_mt" %in% somaker_dataobject$columns_to_filter) {
+          results <- plotly::event_data(
+            "plotly_selected",
+            source = "perc_mt_plot"
           )
+          if (!is.null(results$y)) {
+            cell_filters <- c(
+              cell_filters,
+              list(
+                reactive_metadata$data[["percent_mt"]] <=
+                  max(results$y)
+              ),
+              list(
+                reactive_metadata$data[["percent_mt"]] >=
+                  min(results$y)
+              ),
+              list(
+                reactive_metadata$data[["nCount_RNA"]] <=
+                  max(results$x)
+              ),
+              list(
+                reactive_metadata$data[["nCount_RNA"]] >=
+                  min(results$x)
+              )
+            )
+          }
         }
 
         master_filter <- Reduce(`&`, cell_filters)
@@ -1284,6 +1383,74 @@ run_SOM <- function(
           )
         )
         reactive_metadata$data <- reactive_sobj$data@meta.data
+
+        filtering_parameters <- list("filtering_thresholds" = list())
+        for (md_column in somaker_dataobject$columns_to_filter) {
+          tmp <- list()
+          tmp[[md_column]][["low"]] <- somaker_dataobject[[
+            stringr::str_c(md_column, "_low")
+          ]]
+          tmp[[md_column]][["high"]] <- somaker_dataobject[[
+            stringr::str_c(md_column, "_high")
+          ]]
+          filtering_parameters[["filtering_thresholds"]] <- append(
+            filtering_parameters[["filtering_thresholds"]],
+            tmp
+          )
+        }
+        reactive_sobj$data@misc <- append(
+          reactive_sobj$data@misc,
+          filtering_parameters
+        )
+
+        original_parameters <- list("original_limits" = list())
+        for (md_column in somaker_dataobject$columns_to_filter) {
+          tmp <- list()
+          tmp[[md_column]][["low"]] <- somaker_dataobject[[
+            stringr::str_c("orig_", md_column, "_min")
+          ]]
+          tmp[[md_column]][["high"]] <- somaker_dataobject[[
+            stringr::str_c("orig_", md_column, "_max")
+          ]]
+          original_parameters[["original_limits"]] <- append(
+            original_parameters[["original_limits"]],
+            tmp
+          )
+        }
+        reactive_sobj$data@misc <- append(
+          reactive_sobj$data@misc,
+          original_parameters
+        )
+
+        pkg_versions <- list(
+          "package_versions" = list(
+            "Seurat" = packageVersion("Seurat"),
+            "shiny" = packageVersion("shiny")
+          )
+        )
+        reactive_sobj$data@misc <- append(
+          reactive_sobj$data@misc,
+          pkg_versions
+        )
+
+        reactive_sobj$data@misc <- append(
+          reactive_sobj$data@misc,
+          list(
+            "original_n_cells" = somaker_dataobject$original_n_cells
+          )
+        )
+        reactive_sobj$data@misc <- append(
+          reactive_sobj$data@misc,
+          list(
+            "filtered_n_cells" = somaker_dataobject$filtered_n_cells
+          )
+        )
+        reactive_sobj$data@misc <- append(
+          reactive_sobj$data@misc,
+          list(
+            "created_with" = "https://github.com/shambam/SSOMaker"
+          )
+        )
       }
     )
 
