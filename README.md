@@ -11,7 +11,7 @@ Load a count matrix directory, interactively filter on metadata, view results, d
 To install:
 
 ```R
-devtools::install_github("shambam/SSOMaker")
+devtools::install_github("shambam/SSOMaker", upgrade = "never")
 ```
 
 After installation, to run it:

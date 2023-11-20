@@ -494,7 +494,7 @@ run_SOM <- function(
       to_return <- htmltools::tagList()
       i <- 1
       if (running_locally) {
-        to_return[1] <- shiny::markdown(
+        to_return[[1]] <- shiny::markdown(
           mds = c(
             "## Select a directory",
             "Select the **directory** (**folder**) where the _feature-barcode_ count matrices are. "
@@ -535,7 +535,8 @@ run_SOM <- function(
     volumes <- c(
       Home = getwd(),
       "R Installation" = R.home(),
-      shinyFiles::getVolumes()()
+      # shinyFiles::getVolumes()()
+      fs::path_home()
     ) # TODO: change back to fs::path_home() when done testing
 
     if (running_locally) {
@@ -956,6 +957,7 @@ run_SOM <- function(
             shinyjs::hide("perc_mt_scatter_container")
             shinyjs::show("perc_mt_not_found")
           } else {
+            shinyjs::show("perc_mt_scatter_container")
             shinyjs::hide("perc_mt_not_found")
           }
         }
@@ -1133,32 +1135,30 @@ run_SOM <- function(
             )
           )
         }
-        if (!"percent_mt" %in% somaker_dataobject$columns_to_filter) {
-          results <- plotly::event_data(
-            "plotly_selected",
-            source = "perc_mt_plot"
-          )
-          if (!is.null(results$y)) {
-            cell_filters <- c(
-              cell_filters,
-              list(
-                reactive_metadata$data[["percent_mt"]] <=
-                  max(results$y)
-              ),
-              list(
-                reactive_metadata$data[["percent_mt"]] >=
-                  min(results$y)
-              ),
-              list(
-                reactive_metadata$data[["nCount_RNA"]] <=
-                  max(results$x)
-              ),
-              list(
-                reactive_metadata$data[["nCount_RNA"]] >=
-                  min(results$x)
-              )
+        results <- plotly::event_data(
+          "plotly_selected",
+          source = "perc_mt_plot"
+        )
+        if (!is.null(results$y)) {
+          cell_filters <- c(
+            cell_filters,
+            list(
+              reactive_metadata$data[["percent_mt"]] <=
+                max(results$y)
+            ),
+            list(
+              reactive_metadata$data[["percent_mt"]] >=
+                min(results$y)
+            ),
+            list(
+              reactive_metadata$data[["nCount_RNA"]] <=
+                max(results$x)
+            ),
+            list(
+              reactive_metadata$data[["nCount_RNA"]] >=
+                min(results$x)
             )
-          }
+          )
         }
 
         master_filter <- Reduce(`&`, cell_filters)

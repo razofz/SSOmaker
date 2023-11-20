@@ -12,7 +12,7 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Imports: 
     DT,
-    Seurat,
+    Seurat (< 5.0.0),
     SeuratObject,
     bsicons,
     bslib,
