@@ -1,10 +1,34 @@
 # Seurat Object Maker
+## A Webapp For Turning A Count Matrix Directory Into A Seurat Object
+
+A Shiny webapp for creating a Seurat object without programming expertise.
+Load a count matrix directory, interactively filter on metadata, view results, download Seurat object and results of differential gene expression testing.
+
+---
+
+### Installation
 
 To install:
 
 ```R
 devtools::install_github("shambam/SSOMaker")
 ```
+
+After installation, to run it:
+
+```R
+SeuratObjectMaker::run_SOM(port = 3838)
+```
+
+and open `http://localhost:3838` in your browser.
+
+If this is running on a server (i.e., the matrix files you want to load are not on the same computer as you're running this), adjust the line e.g. like this:
+
+```R
+SeuratObjectMaker::run_SOM(launch.browser = F, port = 32345, running_locally = F)
+```
+
+You can also run [this](https://hub.docker.com/r/razofz/seuratobjectmaker) Docker container: `razofz/seuratobjectmaker:0.0.2` (also port `3838`).
 
 ## Screenshots of current state
 
