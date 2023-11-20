@@ -1,5 +1,11 @@
 # Seurat Object Maker
 
+To install:
+
+```R
+devtools::install_github("shambam/SSOMaker")
+```
+
 ## Screenshots of current state
 
 Selecting directory, with data validity checks:
