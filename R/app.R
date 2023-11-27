@@ -18,18 +18,27 @@
 #' Defaults to \code{TRUE}, since that is a nicer interface
 #' and someone running it from a server probably looks at this documentation
 #' and changes the parameter.
+#' @param upload_size The max upload size in gigabyte (GB)
+#' (needed for Shiny). Default is 8 GB.
 #' @param quiet "\emph{Should Shiny status messages be shown?
 #' Defaults to \code{FALSE}.}"
 #' @examplesIf interactive()
 #' run_SOM()
 #' @export run_SOM
 run_SOM <- function(
-    appDir = getwd(),
+    app_dir = getwd(),
     port = 3838,
-    launch.browser = getOption("shiny.launch.browser", interactive()),
+    launch_browser = getOption("shiny.launch.browser", interactive()),
     host = getOption("shiny.host", "127.0.0.1"),
     running_locally = TRUE,
+    upload_size = 8,
     quiet = FALSE) {
+  
+  # yes, this is bad form. I tried using the `withr` package,
+  # but the setting did not propagate down into child environments,
+  # so this is what it seems I had to do.
+  options(shiny.maxRequestSize = upload_size * 10^3 * 1024^2)
+
   ui <- htmltools::tagList(
     shinyjs::useShinyjs(),
     # htmltools::tags$head(htmltools::tags$link(rel = "stylesheet", type="text/css", href="www/style.css")),
@@ -457,7 +466,9 @@ run_SOM <- function(
     )
 
     # reactive_metadata <- reactiveValues(data = data.frame())
-    reactive_metadata <- shiny::reactiveValues(data = SeuratObject::pbmc_small[[]])
+    reactive_metadata <- shiny::reactiveValues(
+      data = SeuratObject::pbmc_small[[]]
+    )
     reactive_sobj <- shiny::reactiveValues(data = SeuratObject::pbmc_small)
 
     bslib::nav_hide(id = "nav", target = "filtering")
@@ -535,8 +546,8 @@ run_SOM <- function(
     volumes <- c(
       Home = getwd(),
       "R Installation" = R.home(),
-      # shinyFiles::getVolumes()()
-      fs::path_home()
+      shinyFiles::getVolumes()()
+      # fs::path_home()
     ) # TODO: change back to fs::path_home() when done testing
 
     if (running_locally) {
@@ -547,14 +558,10 @@ run_SOM <- function(
             "Folder select",
             "Please select a folder",
             icon = bsicons::bs_icon("folder"),
-            buttonType = "primary" # ,
-            # style = "width: 40%;"
+            buttonType = "primary"
           )
         )
-      })
-      withr::with_options(
-        new = list(shiny.maxRequestSize = 900 * 1024^2), # 900 MB limit
-        code = shinyFiles::shinyDirChoose(
+        shinyFiles::shinyDirChoose(
           input,
           "file_button",
           roots = volumes,
@@ -562,7 +569,7 @@ run_SOM <- function(
           restrictions = system.file(package = "base"),
           allowDirCreate = FALSE
         )
-      )
+      })
     } else {
       output$file_selector <- shiny::renderUI({
         htmltools::tagList(
@@ -878,7 +885,7 @@ run_SOM <- function(
               " Start processing"
             ),
             class = "btn-success",
-            style = "width: 40%;" # ,
+            style = "width: 40%;"
           )
         )
       )
@@ -961,7 +968,6 @@ run_SOM <- function(
             shinyjs::hide("perc_mt_not_found")
           }
         }
-        # print(slider_input_vals)
       }
     )
 
@@ -976,24 +982,24 @@ run_SOM <- function(
       if (somaker_dataobject$is_valid_data) {
         cell_filters <- list()
         for (column in somaker_dataobject$columns_to_filter) {
-          # print(column)
-          # reactive_metadata$data[[column]] %>% head %>% print
-          # slider_input_vals[[column]]()[1] %>% print
           ## TODO: more reasonable check for type of column.
           ## Should probably have a better data model for filterable columns.
           ## E.g. "Is it supposed to only have an upper cutoff? Or a lower? Or both?"
           if (length(slider_input_vals[[column]]()) > 1) {
             cell_filters <- c(
               cell_filters,
-              list(reactive_metadata$data[[column]] >= slider_input_vals[[column]]()[1])
+              list(
+                reactive_metadata$data[[column]] >= slider_input_vals[[column]]()[1]
+              )
             )
           }
           cell_filters <- c(
             cell_filters,
-            list(reactive_metadata$data[[column]] <= slider_input_vals[[column]]()[2])
+            list(
+              reactive_metadata$data[[column]] <= slider_input_vals[[column]]()[2]
+            )
           )
         }
-        # print(cell_filters)
         master_filter <- Reduce(`&`, cell_filters)
         nrow(reactive_metadata$data[
           master_filter,
@@ -1004,10 +1010,6 @@ run_SOM <- function(
 
     output$confirm_filtering_UI <- shiny::renderUI({
       htmltools::div(
-        # shiny::markdown("Data loaded correctly:"),
-        # shiny::verbatimTextOutput("sobj_out"),
-        # shiny::markdown("Press button below to start processing!"),
-        # shiny::verbatimTextOutput("filtering_thresholds"),
         htmltools::div(
           style = "display: flex; justify-content: center;",
           shiny::actionButton(
@@ -1019,7 +1021,7 @@ run_SOM <- function(
               "</strong>"
             ),
             class = "btn-success",
-            style = "width: 40%;" # ,
+            style = "width: 40%;"
           )
         )
       )
@@ -1093,19 +1095,6 @@ run_SOM <- function(
         dragmode = "select"
       )
     })
-
-    # output$foo <- shiny::renderPrint({
-    #   # shiny::req(wait_for_scatter_plot)
-    #   # if (wait_for_scatter_plot() == TRUE) {
-    #   if (!is.null(event_data())) {
-    #     df <- reactive_metadata$data[event_data()$customdata, ]
-    #     print(dim(df))
-    #     # slider_input_vals$percent_mt <<- range(y_min, y_max)
-    #     print(head(df))
-    #     print(head(event_data()))
-    #   }
-    #   # }
-    # })
 
     output$filtering_thresholds <- shiny::renderUI({
       if (somaker_dataobject$is_valid_data) {
@@ -1219,7 +1208,6 @@ run_SOM <- function(
             value = low_value,
             showcase = bsicons::bs_icon("filter-left"),
             theme_color = "primary"
-            # theme_color = "secondary"
           )
           j <- j + 1
 
@@ -1272,7 +1260,6 @@ run_SOM <- function(
           pageLength = 5
         ),
         fillContainer = T
-        # style = 'bootstrap'
       )
     })
 
@@ -1625,9 +1612,9 @@ run_SOM <- function(
       ui,
       server,
       options = list(
-        appDir = appDir,
+        appDir = app_dir,
         port = port,
-        launch.browser = launch.browser,
+        launch.browser = launch_browser,
         host = host,
         quiet = quiet
       )

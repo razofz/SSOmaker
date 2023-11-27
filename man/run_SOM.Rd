@@ -10,6 +10,7 @@ run_SOM(
   launch.browser = getOption("shiny.launch.browser", interactive()),
   host = getOption("shiny.host", "127.0.0.1"),
   running_locally = TRUE,
+  upload_size = 8,
   quiet = FALSE
 )
 }
@@ -30,6 +31,9 @@ exist on or not? TRUE if so, FALSE if running from a server.
 Defaults to \code{TRUE}, since that is a nicer interface
 and someone running it from a server probably looks at this documentation
 and changes the parameter.}
+
+\item{upload_size}{The max upload size in gigabyte (GB)
+(needed for Shiny). Default is 8 GB.}
 
 \item{quiet}{"\emph{Should Shiny status messages be shown?
 Defaults to \code{FALSE}.}"}
