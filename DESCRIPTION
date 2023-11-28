@@ -18,6 +18,7 @@ Imports:
     bslib,
     data.table,
     dplyr,
+    hover,
     htmltools,
     methods,
     plotly,
@@ -25,10 +26,12 @@ Imports:
     shinyFiles,
     shinyjs,
     stats,
+    reactlog,
     stringr,
     utils,
     withr
 Remotes:
     github::daattali/shinycssloaders,
+    github::JohnCoene/shinyscroll
 RoxygenNote: 7.2.3
 Roxygen: list(markdown = TRUE)

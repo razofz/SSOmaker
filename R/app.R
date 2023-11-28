@@ -39,8 +39,12 @@ run_SOM <- function(
   # so this is what it seems I had to do.
   options(shiny.maxRequestSize = upload_size * 10^3 * 1024^2)
 
+  reactlog::reactlog_enable()
+
   ui <- htmltools::tagList(
     shinyjs::useShinyjs(),
+    hover::use_hover(),
+    shinyscroll::use_shinyscroll(),
     # htmltools::tags$head(htmltools::tags$link(rel = "stylesheet", type="text/css", href="www/style.css")),
     # htmltools::tags$head(htmltools::includeCSS("www/style.css")),
     htmltools::tags$head(
@@ -53,6 +57,13 @@ run_SOM <- function(
             other theme in future. Or if adding dark mode..
             Should probably use SASS then, to make it easier.
             */
+        }
+
+        .navbar-brand {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%
         }
 
         .file-load-button-SOM {
@@ -68,7 +79,19 @@ run_SOM <- function(
         bootswatch = "pulse",
         version = 5
       ),
-      title = "Seurat Object Maker",
+      title = htmltools::div(
+        hover::hover_reload_button(
+          inputId = "page_title",
+          label = htmltools::h3(
+            "Seurat Object Maker"
+          ),
+          button_animation = "underline-from-left",
+          style = paste(
+            "background-color:rgba(0, 0, 0, 0);",
+            "color: white; border: none;"
+          )
+        )
+      ),
       fillable = FALSE,
       sidebar = bslib::sidebar(
         shiny::conditionalPanel(
@@ -119,6 +142,7 @@ run_SOM <- function(
         value = "load_data",
         bslib::card_body(
           shiny::uiOutput("dataload_instructions"),
+          # shiny::verbatimTextOutput(("foo")),
           htmltools::div(
             style = "display: flex; justify-content: center;",
             # htmltools::div(
@@ -553,6 +577,13 @@ run_SOM <- function(
     if (running_locally) {
       output$file_selector <- shiny::renderUI({
         htmltools::tagList(
+          hover::hover_action_button(
+            inputId = "btn",
+            label = "Show instructions",
+            icon = shiny::icon("refresh"),
+            button_animation = "rotate",
+            icon_animation = "fade"
+          ),
           shinyFiles::shinyDirButton(
             "file_button",
             "Folder select",
@@ -596,9 +627,14 @@ run_SOM <- function(
       })
     }
 
+
     reactive_features <- shiny::reactiveValues(
       data = SeuratObject::pbmc_small[[]]
     )
+
+    # output$foo <- shiny::renderPrint({
+    #   print(options()$shiny.maxRequestSize)
+    # })
 
     # Validate and store the selected directory
     shiny::observeEvent(input$file_button, {
@@ -633,6 +669,10 @@ run_SOM <- function(
               }
               shinyjs::hide("dir_invalid_UI")
               shinyjs::show("dir_valid_UI")
+              shinyjs::delay(
+                ms = 200,
+                expr = { shinyscroll::scroll("load_into_seurat") }
+              )
             } else {
               shinyjs::hide("dir_valid_UI")
               shinyjs::show("dir_invalid_UI")
@@ -691,6 +731,10 @@ run_SOM <- function(
             }
             shinyjs::hide("dir_invalid_UI")
             shinyjs::show("dir_valid_UI")
+            shinyjs::delay(
+              ms = 200,
+              expr = { shinyscroll::scroll("load_into_seurat") }
+            )
             somaker_dataobject$is_valid_directory <- is_valid_dir
           } else {
             shinyjs::hide("dir_valid_UI")
@@ -832,6 +876,7 @@ run_SOM <- function(
     shinyjs::onclick("load_into_seurat",
       expr = {
         shinyjs::disable("load_into_seurat")
+        # shinyscroll::scroll("dataload_instructions")
         load_time <- system.time(
           shinycssloaders::showPageSpinner(
             type = 6,
@@ -845,9 +890,11 @@ run_SOM <- function(
               )
               sobj <- make_seurat_object(sobj_data)
             },
-            caption = htmltools::HTML(
+            caption = htmltools::div(
               "Loading data into Seurat..",
-              bsicons::bs_icon("tools")
+              bsicons::bs_icon("tools"),
+              htmltools::br(),
+              htmltools::p(id = "subcaption", "a new line")
             )
           )
         )
@@ -868,6 +915,10 @@ run_SOM <- function(
       reactive_metadata$data <- sobj[[]]
       reactive_sobj$data <- sobj
       shinyjs::show("start_processing_UI")
+      shinyjs::delay(
+        ms = 100,
+        expr = { shinyscroll::scroll("start_processing") }
+      )
       # }
     })
 
