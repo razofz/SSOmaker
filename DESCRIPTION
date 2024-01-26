@@ -12,8 +12,9 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 Imports: 
     DT,
-    Seurat (< 5.0.0),
+    Seurat,
     SeuratObject,
+    R.utils,
     bsicons,
     bslib,
     data.table,

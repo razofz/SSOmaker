@@ -109,6 +109,7 @@ make_seurat_object <- function(
     project = project_name
   )
   # , min.cells = 3, min.features = 200)
+  rm(data_matrix)
   sobj[["percent_mt"]] <- Seurat::PercentageFeatureSet(
     sobj,
     pattern = "^(MT-)|^(mt-)"
@@ -192,6 +193,35 @@ process_seurat_object <- function(
     verbose = FALSE
   )
 
+  return(seurat_object)
+}
+
+normalize_data_SOM <- function(
+    seurat_object,
+    filtering_thresholds = list()) {
+  print("Normalising data..")
+  shinyjs::logjs("Normalising data..")
+  seurat_object <- Seurat::NormalizeData(
+    object = seurat_object,
+    verbose = FALSE
+  )
+  return(seurat_object)
+}
+
+find_hvgs_SOM <- function(
+    seurat_object,
+    n_hvgs = 2e3,
+    filtering_thresholds = list()) {
+  print("Finding HVGs..")
+  shinyjs::logjs("Finding HVGs..")
+  if (length(Seurat::Cells(seurat_object)) < n_hvgs) {
+    n_hvgs <- length(Seurat::Cells(seurat_object)) * 0.4
+  }
+  seurat_object <- Seurat::FindVariableFeatures(
+    object = seurat_object,
+    nfeatures = n_hvgs,
+    verbose = FALSE
+  )
   return(seurat_object)
 }
 

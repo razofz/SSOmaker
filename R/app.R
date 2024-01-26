@@ -33,7 +33,6 @@ run_SOM <- function(
     running_locally = TRUE,
     upload_size = 8,
     quiet = FALSE) {
-  
   # yes, this is bad form. I tried using the `withr` package,
   # but the setting did not propagate down into child environments,
   # so this is what it seems I had to do.
@@ -152,6 +151,7 @@ run_SOM <- function(
           ),
           shinyjs::hidden(shiny::uiOutput("dir_valid_UI")),
           shinyjs::hidden(shiny::uiOutput("dir_invalid_UI")),
+          shinyjs::hidden(shiny::uiOutput("past_upload_size_UI")),
           shinyjs::hidden(shiny::uiOutput("start_processing_UI"))
         ),
       ),
@@ -574,6 +574,23 @@ run_SOM <- function(
       # fs::path_home()
     ) # TODO: change back to fs::path_home() when done testing
 
+    output$upload_limit <- shiny::renderUI({
+      htmltools::tagList(
+        bslib::tooltip(
+          htmltools::span(
+            shiny::helpText(
+              htmltools::em("Upload size limit ")
+            ),
+            bsicons::bs_icon("info-circle")
+          ),
+          stringr::str_c(
+            "Currently max upload size is ",
+            upload_size, " GB."
+          )
+        )
+      )
+    })
+
     if (running_locally) {
       output$file_selector <- shiny::renderUI({
         htmltools::tagList(
@@ -590,7 +607,8 @@ run_SOM <- function(
             "Please select a folder",
             icon = bsicons::bs_icon("folder"),
             buttonType = "primary"
-          )
+          ),
+          shiny::uiOutput("upload_limit")
         )
         shinyFiles::shinyDirChoose(
           input,
@@ -621,20 +639,24 @@ run_SOM <- function(
               multiple = TRUE,
               accept = c(".csv", ".tsv", ".gz", ".mtx"),
               placeholder = "Nothing selected yet"
-            )
+            ),
+            shiny::uiOutput("upload_limit")
           )
         )
       })
     }
 
-
     reactive_features <- shiny::reactiveValues(
       data = SeuratObject::pbmc_small[[]]
     )
 
-    # output$foo <- shiny::renderPrint({
-    #   print(options()$shiny.maxRequestSize)
-    # })
+    output$foo <- shiny::renderPrint({
+      print("hello")
+      print(options()$shiny.maxRequestSize)
+      print(sum(input$file_button[, "size"]))
+      print(ls())
+      print(pryr::mem_used())
+    })
 
     # Validate and store the selected directory
     shiny::observeEvent(input$file_button, {
@@ -671,7 +693,9 @@ run_SOM <- function(
               shinyjs::show("dir_valid_UI")
               shinyjs::delay(
                 ms = 200,
-                expr = { shinyscroll::scroll("load_into_seurat") }
+                expr = {
+                  shinyscroll::scroll("load_into_seurat")
+                }
               )
             } else {
               shinyjs::hide("dir_valid_UI")
@@ -685,7 +709,10 @@ run_SOM <- function(
         }
       } else if (!running_locally) {
         # print(somaker_dataobject$files_selected)
-        if (dim(input$file_button)[1] != 3) {
+
+        if (sum(input$file_button[, "size"]) > options()$shiny.maxRequestSize) {
+          shinyjs::show("past_upload_size_UI")
+        } else if (dim(input$file_button)[1] != 3) {
           shinyjs::hide("dir_valid_UI")
           shinyjs::show("dir_invalid_UI")
         } else {
@@ -708,6 +735,7 @@ run_SOM <- function(
               )
             )
           }
+
           if (is_valid_dir) {
             filenames <- unlist(
               lapply(
@@ -733,7 +761,9 @@ run_SOM <- function(
             shinyjs::show("dir_valid_UI")
             shinyjs::delay(
               ms = 200,
-              expr = { shinyscroll::scroll("load_into_seurat") }
+              expr = {
+                shinyscroll::scroll("load_into_seurat")
+              }
             )
             somaker_dataobject$is_valid_directory <- is_valid_dir
           } else {
@@ -847,6 +877,22 @@ run_SOM <- function(
       )
     })
 
+    output$past_upload_size_UI <- shiny::renderUI({
+      htmltools::br()
+      htmltools::div(
+        style = "display: flex; justify-content: center;",
+        bslib::card(
+          bslib::card_header(htmltools::h4("Did not succeed.")),
+          shiny::markdown(
+            "Uploaded files are too large. ",
+            "Please select smaller files."
+          ),
+          class = "card text-bg-danger",
+          style = "width: 30%"
+        ),
+      )
+    })
+
     output$dir_invalid_UI <- shiny::renderUI({
       htmltools::br()
       htmltools::div(
@@ -894,7 +940,7 @@ run_SOM <- function(
               "Loading data into Seurat..",
               bsicons::bs_icon("tools"),
               htmltools::br(),
-              htmltools::p(id = "subcaption", "a new line")
+              # htmltools::p(id = "subcaption", "a new line")
             )
           )
         )
@@ -917,7 +963,9 @@ run_SOM <- function(
       shinyjs::show("start_processing_UI")
       shinyjs::delay(
         ms = 100,
-        expr = { shinyscroll::scroll("start_processing") }
+        expr = {
+          shinyscroll::scroll("start_processing")
+        }
       )
       # }
     })

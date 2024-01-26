@@ -23,7 +23,7 @@ qc_slider_server <- function(id, col, metadata, start_values) {
       }
       if (update_it() < 2) {
         # print(stringr::str_c("update_it(): ", update_it()))
-        shiny::invalidateLater(300, session)
+        shiny::invalidateLater(700, session)
       }
       col_range <- range(shiny::isolate(metadata$data[[col]]), na.rm = TRUE)
       shiny::updateSliderInput(
