@@ -6,12 +6,14 @@ Load a count matrix directory, interactively filter on metadata, view results, d
 
 ---
 
+Currently hosted on Scilifelab Serve: [https://som.serve.scilifelab.se/app/som](https://som.serve.scilifelab.se/app/som).
+
 ### Installation
 
 To install:
 
 ```R
-devtools::install_github("shambam/SSOMaker", upgrade = "never")
+devtools::install_github("razofz/SSOMaker", upgrade = "never")
 ```
 
 After installation, to run it:
@@ -28,7 +30,7 @@ If this is running on a server (i.e., the matrix files you want to load are not 
 SeuratObjectMaker::run_SOM(launch.browser = F, port = 32345, running_locally = F)
 ```
 
-You can also run [this](https://hub.docker.com/r/razofz/seuratobjectmaker) Docker container: `razofz/seuratobjectmaker:0.0.2` (also port `3838`).
+You can also run [this](https://hub.docker.com/r/razofz/seuratobjectmaker) Docker container: `razofz/seuratobjectmaker:0.0.2.2` (also port `3838`).
 
 ## Screenshots of current state
 
